@@ -15,6 +15,7 @@ type RealServer struct {
 	Proto     string // inhereted from service
 	State     bool
 	Timeout   int
+	Weight    int
 	ToService chan ServiceMsg // inhereted from service; chan to communicate events to service container
 	ToReal    chan ServiceMsg
 }
@@ -38,6 +39,14 @@ type Service struct {
 /*
 	service container <-> realServer communication (for example "kill realServer")
 	or realServer failed healthcheck etc
+	Type of cmnds:
+		"Alive" (RS->Service) if healtcheck was successful and realServer is working
+			Data in this case would be RIP+Port+Proto in case of lack of metainfo
+			and RIP+Meta if meta exists
+		"Dead" (RS->Service) if healthcheck was failed and realServer is not working
+			Data will be the same as above
+		"RSFatalError" (RS->Service) if there was a fatal error during setup of real server
+			(for example we wasnt able to resolve real's ip+port etc)
 */
 type ServiceMsg struct {
 	Cmnd string
@@ -122,6 +131,31 @@ func (srvc *Service) Init() {
 	srvc.FromReal = make(chan ServiceMsg)
 }
 
+func (srvc *Service) FindReal(RIP, Port, Meta string) (*RealServer, int) {
+	for cntr := 0; cntr < len(srvc.Reals); cntr++ {
+		rlSrv := &(srvc.Reals[cntr])
+		if rlSrv.RIP == RIP && rlSrv.Port == Port && rlSrv.Meta == Meta {
+			return rlSrv, cntr
+		}
+	}
+	return nil, 0
+}
+
+func (srvc *Service) RemoveReal(rlSrv *RealServer, index int, notifyReal bool) {
+	if notifyReal {
+		//TODO: add logick to notify real, that it's going to be deleted; for example send smthng to chan
+	}
+	//TODO: add logic w/ adapter (adapter is responsible for adding and removing datapath to real)
+	if index == len(srvc.Reals) {
+		srvc.Reals = srvc.Reals[:index]
+	} else {
+		srvc.Reals = append(srvc.Reals[:index], srvc.Reals[index+1:]...)
+	}
+	logMsg := strings.Join([]string{"removing real server", rlSrv.RIP, rlSrv.Port,
+		rlSrv.Meta, "for service", srvc.VIP, srvc.Port, srvc.Proto}, " ")
+	srvc.logWriter.Write([]byte(logMsg))
+}
+
 func (srvc *Service) StartService() {
 	for cntr := 0; cntr < len(srvc.Reals); cntr++ {
 		go srvc.Reals[cntr].StartReal()
@@ -152,9 +186,30 @@ func (srvc *Service) StartService() {
 						srvc.Port, srvc.Proto}, " ")
 					srvc.logWriter.Write([]byte(logMsg))
 				}
+			case "RSFatalError":
+				/*
+				 right now it seems that real could send this tipe of msg only
+				 at the beggining of his life (when it's not yet enbled and always counted
+				 as dead; so we dont need to check if it's alive and do something with
+				 AliveReals counter. Mb this would change in future
+				*/
+				DataFields := strings.Fields(msg.Data)
+				if len(DataFields) < 3 {
+					DataFields = append(DataFields, "")
+				}
+				rlSrv, index := srvc.FindReal(DataFields[0], DataFields[1], DataFields[2])
+				if rlSrv != nil {
+					srvc.RemoveReal(rlSrv, index, false)
+				}
 			}
 		}
 	}
+}
+
+func (rlSrv *RealServer) ServiceMsgDataString() string {
+	DataString := ""
+	DataString = strings.Join([]string{rlSrv.RIP, rlSrv.Port, rlSrv.Meta}, " ")
+	return DataString
 }
 
 func (rlSrv *RealServer) StartReal() {
@@ -176,7 +231,8 @@ func (rlSrv *RealServer) StartReal() {
 		go healthchecks.TCPCheck(toCheck, fromCheck, checkLine, rlSrv.Timeout)
 	case "http", "https":
 		if len(fields) < 2 {
-			//TODO: logic to proper kill of the real servers goroutine
+			DataString := rlSrv.ServiceMsgDataString()
+			rlSrv.ToService <- ServiceMsg{Cmnd: "RSFatalError", Data: DataString}
 			return
 		}
 		checkLine := fields[1:]
@@ -190,28 +246,19 @@ func (rlSrv *RealServer) StartReal() {
 			case -1:
 				//TODO: add logic to remove real coz of this error
 				fmt.Println("cant resolve remote addr")
+				DataString := rlSrv.ServiceMsgDataString()
+				rlSrv.ToService <- ServiceMsg{Cmnd: "RSFatalError", Data: DataString}
+				loop = 0
 			case 1:
 				if rlSrv.State == false {
 					rlSrv.State = true
-					DataString := ""
-					if rlSrv.Meta != "" {
-						//right now i can only think meta == tun; prob gonna rewrite this later
-						DataString = strings.Join([]string{rlSrv.RIP, rlSrv.Meta}, " ")
-					} else {
-						DataString = strings.Join([]string{rlSrv.RIP, rlSrv.Port, rlSrv.Proto}, " ")
-					}
+					DataString := rlSrv.ServiceMsgDataString()
 					rlSrv.ToService <- ServiceMsg{Cmnd: "Alive", Data: DataString}
 				}
 			case 0:
 				if rlSrv.State == true {
 					rlSrv.State = false
-					DataString := ""
-					if rlSrv.Meta != "" {
-						//right now i can only think meta == tun; prob gonna rewrite this later
-						DataString = strings.Join([]string{rlSrv.RIP, rlSrv.Meta}, " ")
-					} else {
-						DataString = strings.Join([]string{rlSrv.RIP, rlSrv.Port, rlSrv.Proto}, " ")
-					}
+					DataString := rlSrv.ServiceMsgDataString()
 					rlSrv.ToService <- ServiceMsg{Cmnd: "Dead", Data: DataString}
 				}
 			}
@@ -229,7 +276,8 @@ func IsServiceValid(srvc Service) bool {
 }
 
 func (rlsrv *RealServer) isEqualReal(otherRlsrv RealServer) bool {
-	if rlsrv.RIP == otherRlsrv.RIP && rlsrv.Port == otherRlsrv.Port {
+	if rlsrv.RIP == otherRlsrv.RIP && rlsrv.Port == otherRlsrv.Port &&
+		rlsrv.Meta == otherRlsrv.Meta {
 		return true
 	} else {
 		return false
