@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"go_keepalived/adapter"
 	"go_keepalived/healthchecks"
 	"log/syslog"
 	"strings"
@@ -15,7 +16,7 @@ type RealServer struct {
 	Proto     string // inhereted from service
 	State     bool
 	Timeout   int
-	Weight    int
+	Weight    string
 	ToService chan ServiceMsg // inhereted from service; chan to communicate events to service container
 	ToReal    chan ServiceMsg
 }
@@ -32,6 +33,7 @@ type Service struct {
 	ToService   chan ServiceMsg
 	FromService chan ServiceMsg
 	FromReal    chan ServiceMsg
+	ToAdapter   chan adapter.AdapterMsg
 	logWriter   *syslog.Writer
 	Reals       []RealServer
 }
@@ -47,6 +49,7 @@ type Service struct {
 			Data will be the same as above
 		"RSFatalError" (RS->Service) if there was a fatal error during setup of real server
 			(for example we wasnt able to resolve real's ip+port etc)
+		"Shutdown" (Service->RS) if we want to remove realServer from service context
 */
 type ServiceMsg struct {
 	Cmnd string
@@ -55,6 +58,7 @@ type ServiceMsg struct {
 
 type ServicesList struct {
 	List      []Service
+	ToAdapter chan adapter.AdapterMsg
 	logWriter *syslog.Writer
 }
 
@@ -68,6 +72,8 @@ func (sl *ServicesList) Init() {
 	if err != nil {
 		panic("cant connect to syslog")
 	}
+	sl.ToAdapter = make(chan adapter.AdapterMsg)
+	go adapter.StartAdapter(sl.ToAdapter)
 	sl.logWriter = writer
 }
 
@@ -81,6 +87,7 @@ func (sl *ServicesList) Add(srvc Service) {
 		}
 	}
 	srvc.logWriter = sl.logWriter
+	srvc.ToAdapter = sl.ToAdapter
 	sl.List = append(sl.List, srvc)
 	logMsg := strings.Join([]string{"added new service", srvc.VIP, " ",
 		srvc.Proto, ":", srvc.Port}, " ")
@@ -143,7 +150,7 @@ func (srvc *Service) FindReal(RIP, Port, Meta string) (*RealServer, int) {
 
 func (srvc *Service) RemoveReal(rlSrv *RealServer, index int, notifyReal bool) {
 	if notifyReal {
-		//TODO: add logick to notify real, that it's going to be deleted; for example send smthng to chan
+		rlSrv.ToReal <- ServiceMsg{Cmnd: "Shutdown"}
 	}
 	//TODO: add logic w/ adapter (adapter is responsible for adding and removing datapath to real)
 	if index == len(srvc.Reals) {
@@ -156,11 +163,27 @@ func (srvc *Service) RemoveReal(rlSrv *RealServer, index int, notifyReal bool) {
 	srvc.logWriter.Write([]byte(logMsg))
 }
 
+func GenerateAdapterMsg(msgType string, srvc *Service, rlSrv *RealServer) adapter.AdapterMsg {
+	adapterMsg := adapter.AdapterMsg{}
+	adapterMsg.Type = msgType
+	adapterMsg.ServiceVIP = srvc.VIP
+	adapterMsg.ServicePort = srvc.Port
+	adapterMsg.ServiceProto = srvc.Proto
+	if rlSrv != nil {
+		adapterMsg.RealServerRIP = rlSrv.RIP
+		adapterMsg.RealServerPort = rlSrv.Port
+		adapterMsg.RealServerWeight = rlSrv.Weight
+		adapterMsg.RealServerMeta = rlSrv.Meta
+	}
+	return adapterMsg
+}
+
 func (srvc *Service) StartService() {
 	for cntr := 0; cntr < len(srvc.Reals); cntr++ {
 		go srvc.Reals[cntr].StartReal()
 	}
 	loop := 1
+	srvc.ToAdapter <- GenerateAdapterMsg("AddService", srvc, nil)
 	for loop == 1 {
 		select {
 		case msg := <-srvc.FromReal:
@@ -262,6 +285,11 @@ func (rlSrv *RealServer) StartReal() {
 					rlSrv.ToService <- ServiceMsg{Cmnd: "Dead", Data: DataString}
 				}
 			}
+		case msgToReal := <-rlSrv.ToReal:
+			switch msgToReal.Cmnd {
+			case "Shutdown":
+				loop = 0
+			}
 		}
 	}
 
@@ -285,10 +313,10 @@ func (rlsrv *RealServer) isEqualReal(otherRlsrv RealServer) bool {
 }
 
 //TODO: add loging as well
-func (srvc *Service) AddReal(rlsrv RealServer) {
+func (srvc *Service) AddReal(rlsrv RealServer) int {
 	for cntr := 0; cntr < len(srvc.Reals); cntr++ {
 		if srvc.Reals[cntr].isEqualReal(rlsrv) {
-			return
+			return -1
 		}
 	}
 	rlsrv.Proto = srvc.Proto
@@ -296,6 +324,7 @@ func (srvc *Service) AddReal(rlsrv RealServer) {
 	rlsrv.ToService = srvc.FromReal
 	rlsrv.ToReal = make(chan ServiceMsg)
 	srvc.Reals = append(srvc.Reals, rlsrv)
+	return len(srvc.Reals)
 
 }
 
