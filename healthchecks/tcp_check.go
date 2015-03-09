@@ -19,6 +19,11 @@ func TCPCheck(toCheck, fromCheck chan int, checkLine []string, timeOut int) {
 		case <-toCheck:
 			loop = 0
 		case <-time.After(time.Second * time.Duration(timeOut)):
+			/*
+				TODO: add timeout for initial connection. if remote host silently drops
+				our packets (for example iptables -j DROP) we will wait whole
+				tcp to(exp bo)* tcp syn retries before fail this check
+			*/
 			tcpConn, err := net.DialTCP("tcp", nil, tcpAddr)
 			if err != nil {
 				fromCheck <- 0

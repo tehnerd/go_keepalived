@@ -64,7 +64,7 @@ func IPVSCliArgs(ipvsCmnds *IPVSAdmCmnds) []string {
 	cliCmnds = append(cliCmnds, ipvsCmnds.ActionFlag, ipvsCmnds.ProtoFlag,
 		ipvsCmnds.VIP)
 	if ipvsCmnds.RealServerComand > 0 {
-		cliCmnds = append(cliCmnds, ipvsCmnds.RIP)
+		cliCmnds = append(cliCmnds, "-r", ipvsCmnds.RIP)
 		if ipvsCmnds.RealServerComand == 1 {
 			cliCmnds = append(cliCmnds, ipvsCmnds.MetaInfo)
 		}

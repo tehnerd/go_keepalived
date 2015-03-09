@@ -138,6 +138,16 @@ func (srvc *Service) Init() {
 	srvc.FromReal = make(chan ServiceMsg)
 }
 
+func (srvc *Service) FindRealFromMsgData(msgData string) *RealServer {
+	//right now we always have msg data in format "rip port (meta)?"
+	dataFields := strings.Fields(msgData)
+	if len(dataFields) != 3 {
+		dataFields = append(dataFields, "")
+	}
+	rlSrv, _ := srvc.FindReal(dataFields[0], dataFields[1], dataFields[2])
+	return rlSrv
+}
+
 func (srvc *Service) FindReal(RIP, Port, Meta string) (*RealServer, int) {
 	for cntr := 0; cntr < len(srvc.Reals); cntr++ {
 		rlSrv := &(srvc.Reals[cntr])
@@ -192,6 +202,10 @@ func (srvc *Service) StartService() {
 				srvc.AliveReals--
 				logMsg := strings.Join([]string{"real server", msg.Data, "now dead"}, " ")
 				srvc.logWriter.Write([]byte(logMsg))
+				rlSrv := srvc.FindRealFromMsgData(msg.Data)
+				if rlSrv != nil {
+					srvc.ToAdapter <- GenerateAdapterMsg("DeleteRealServer", srvc, rlSrv)
+				}
 				if srvc.AliveReals < srvc.Quorum && srvc.State == true {
 					srvc.State = false
 					logMsg = strings.Join([]string{"turning down service", srvc.VIP,
@@ -202,6 +216,10 @@ func (srvc *Service) StartService() {
 				srvc.AliveReals++
 				logMsg := strings.Join([]string{"real server", msg.Data, "now alive"}, " ")
 				srvc.logWriter.Write([]byte(logMsg))
+				rlSrv := srvc.FindRealFromMsgData(msg.Data)
+				if rlSrv != nil {
+					srvc.ToAdapter <- GenerateAdapterMsg("AddRealServer", srvc, rlSrv)
+				}
 				//TODO: hysteresis
 				if srvc.AliveReals >= srvc.Quorum && srvc.State == false {
 					srvc.State = true
