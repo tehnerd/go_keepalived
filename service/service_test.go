@@ -1,10 +1,19 @@
 package service
 
 import (
+	"fmt"
+	"go_keepalived/adapter"
 	"log/syslog"
 	"testing"
 	"time"
 )
+
+func DummyAdapterReader(msgChan chan adapter.AdapterMsg) {
+	for {
+		msg := <-msgChan
+		fmt.Println(msg)
+	}
+}
 
 func TestServicesListAdd(t *testing.T) {
 	srvc1 := Service{VIP: "127.0.0.1", Proto: "tcp", Port: "22"}
@@ -13,6 +22,9 @@ func TestServicesListAdd(t *testing.T) {
 	srvc4 := Service{VIP: "127.0.0.1", Proto: "tcp", Port: "22"}
 	srvcList := ServicesList{}
 	srvcList.Init()
+	//HACK. we wont need to send anything to ipvsadm
+	srvcList.ToAdapter = make(chan adapter.AdapterMsg)
+	go DummyAdapterReader(srvcList.ToAdapter)
 	srvcList.Add(srvc1)
 	srvcList.Add(srvc2)
 	srvcList.Add(srvc3)
@@ -29,6 +41,8 @@ func TestServicesListRemove(t *testing.T) {
 	srvc4 := Service{VIP: "127.0.0.4", Proto: "tcp", Port: "22"}
 	srvcList := ServicesList{}
 	srvcList.Init()
+	srvcList.ToAdapter = make(chan adapter.AdapterMsg)
+	go DummyAdapterReader(srvcList.ToAdapter)
 	srvcList.Add(srvc1)
 	srvcList.Add(srvc2)
 	srvcList.Add(srvc3)
@@ -51,6 +65,8 @@ func TestServiceAddReal(t *testing.T) {
 	rlSrv3 := RealServer{RIP: "127.0.0.4", Port: "22"}
 	rlSrv4 := RealServer{RIP: "127.0.0.4", Port: "22"}
 	srvc1.Init()
+	srvc1.ToAdapter = make(chan adapter.AdapterMsg)
+	go DummyAdapterReader(srvc1.ToAdapter)
 	srvc1.Timeout = 33
 	srvc1.AddReal(rlSrv1)
 	srvc1.AddReal(rlSrv2)
@@ -78,6 +94,9 @@ func TestServiceRemoveReal(t *testing.T) {
 	//because we didnt add srvc1 to services list we dont have syslog Writer
 	srvc1.logWriter, _ = syslog.New(syslog.LOG_INFO, "go_keepalive_test")
 	srvc1.Timeout = 33
+	srvc1.ToAdapter = make(chan adapter.AdapterMsg)
+	go DummyAdapterReader(srvc1.ToAdapter)
+
 	srvc1.AddReal(rlSrv1)
 	srvc1.AddReal(rlSrv2)
 	srvc1.AddReal(rlSrv3)
@@ -108,6 +127,8 @@ func TestServiceStart(t *testing.T) {
 	srvc1.Init()
 	srvc1.logWriter, _ = syslog.New(syslog.LOG_INFO, "go_keepalive_test")
 	srvc1.Timeout = 33
+	srvc1.ToAdapter = make(chan adapter.AdapterMsg)
+	go DummyAdapterReader(srvc1.ToAdapter)
 	srvc1.AddReal(rlSrv1)
 	srvc1.AddReal(rlSrv2)
 	srvc1.AddReal(rlSrv3)
