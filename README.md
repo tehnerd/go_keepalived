@@ -26,7 +26,7 @@ Other goals:
 basicly that gives us a minimal feature set to move on with other parts of the project.
 
 ### Future plans and TODOs:
-  * add bgp speaker (prob will be in separate github's project)
+  * add bgp speaker (work in progress; https://github.com/tehnerd/go_bgpcp)
   * add external api for services configuration (rest,grpc etc)
   * stability and features improvement (lots of things must be added)
   * proper IPv6 support (MUSTMUSTMUST; right now we dont check/parse etc addresses of the reals and vip's)
