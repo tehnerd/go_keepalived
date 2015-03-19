@@ -1,5 +1,9 @@
 package adapter
 
+import (
+	"go_keepalived/notifier"
+)
+
 /*
  this type of messages are using to communicate to/from
  adapter (right now we are using only ipvsadm as adapter for
@@ -13,6 +17,7 @@ type AdapterMsg struct {
 		"AddX","ChangeX","DeleteX". msgs derection Service->Adapter; where X could be either
 			"Service" or "Real"
 		"Error", Adapter->Service
+		"AdvertiseService","WithdrawService" when service goes up/down
 	*/
 	Type string
 
@@ -35,7 +40,7 @@ type AdapterMsg struct {
 	RealServerWeight string
 }
 
-func StartAdapter(msgChan chan AdapterMsg) {
+func StartAdapter(msgChan chan AdapterMsg, notifierChan chan notifier.NotifierMsg) {
 	loop := 1
 	for loop == 1 {
 		select {
@@ -44,7 +49,16 @@ func StartAdapter(msgChan chan AdapterMsg) {
 				TODO: if we ever gonna have more than ipvs adapter we need to add here
 				adapter's type check
 			*/
-			IPVSAdmExec(&msg)
+			err := IPVSAdmExec(&msg)
+			if err != nil {
+				//TODO: proper handling
+				continue
+			}
+			/*
+				The whole purpose of notifier is to tell about state of our services to
+				outerworld (right now the only implemented notifier is bgp injector)
+			*/
+			notifierChan <- notifier.NotifierMsg{Type: msg.Type, Data: msg.ServiceVIP}
 		}
 	}
 }

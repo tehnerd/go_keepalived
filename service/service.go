@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go_keepalived/adapter"
 	"go_keepalived/healthchecks"
+	"go_keepalived/notifier"
 	"log/syslog"
 	"strings"
 )
@@ -57,9 +58,11 @@ type ServiceMsg struct {
 }
 
 type ServicesList struct {
-	List      []Service
-	ToAdapter chan adapter.AdapterMsg
-	logWriter *syslog.Writer
+	List         []Service
+	ToAdapter    chan adapter.AdapterMsg
+	ToNotifier   chan notifier.NotifierMsg
+	FromNotifier chan notifier.NotifierMsg
+	logWriter    *syslog.Writer
 }
 
 /*
@@ -73,7 +76,9 @@ func (sl *ServicesList) Init() {
 		panic("cant connect to syslog")
 	}
 	sl.ToAdapter = make(chan adapter.AdapterMsg)
-	go adapter.StartAdapter(sl.ToAdapter)
+	sl.ToNotifier = make(chan notifier.NotifierMsg)
+	sl.FromNotifier = make(chan notifier.NotifierMsg)
+	go adapter.StartAdapter(sl.ToAdapter, sl.ToNotifier)
 	sl.logWriter = writer
 }
 
@@ -93,6 +98,13 @@ func (sl *ServicesList) Add(srvc Service) {
 		srvc.Proto, ":", srvc.Port}, " ")
 	sl.logWriter.Write([]byte(logMsg))
 
+}
+
+func (sl *ServicesList) AddNotifier(notifierCfg notifier.NotifierConfig) {
+	go notifier.Notifier(sl.ToNotifier, sl.FromNotifier, notifierCfg)
+	for _, neighbour := range notifierCfg.NeighboursList {
+		sl.ToNotifier <- notifier.NotifierMsg{Type: "AddPeer", Data: neighbour}
+	}
 }
 
 func (srvc *Service) isEqual(otherSrvc *Service) bool {
@@ -211,6 +223,7 @@ func (srvc *Service) StartService() {
 					logMsg = strings.Join([]string{"turning down service", srvc.VIP,
 						srvc.Port, srvc.Proto}, " ")
 					srvc.logWriter.Write([]byte(logMsg))
+					srvc.ToAdapter <- GenerateAdapterMsg("WithdrawService", srvc, nil)
 				}
 			case "Alive":
 				srvc.AliveReals++
@@ -226,6 +239,7 @@ func (srvc *Service) StartService() {
 					logMsg = strings.Join([]string{"bringing up service", srvc.VIP,
 						srvc.Port, srvc.Proto}, " ")
 					srvc.logWriter.Write([]byte(logMsg))
+					srvc.ToAdapter <- GenerateAdapterMsg("AdvertiseService", srvc, nil)
 				}
 			case "RSFatalError":
 				/*

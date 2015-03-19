@@ -72,9 +72,11 @@ func IPVSCliArgs(ipvsCmnds *IPVSAdmCmnds) []string {
 	return cliCmnds
 }
 
-func IPVSAdmExec(msg *AdapterMsg) {
+func IPVSAdmExec(msg *AdapterMsg) error {
 	ipvsCmnds := IPVSParseAdapterMsg(msg)
 	switch msg.Type {
+	case "AdvertiseService", "WithdrawService":
+		return nil
 	case "AddService":
 		ipvsCmnds.ActionFlag = "-A"
 	case "DeleteService":
@@ -100,7 +102,8 @@ func IPVSAdmExec(msg *AdapterMsg) {
 	*/
 	output, err := execCmnd.CombinedOutput()
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	fmt.Println(string(output))
+	return nil
 }

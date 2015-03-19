@@ -136,7 +136,7 @@ func TestServiceStart(t *testing.T) {
 	go srvc1.StartService()
 	//stupid way for sync, mb add something better in future
 	time.Sleep(3 * time.Second)
-	if len(srvc1.Reals) != 2 {
+	if len(srvc1.Reals) != 3 {
 		t.Errorf("something wrong with RSFatalError handling, there are %d reals", len(srvc1.Reals))
 	}
 }

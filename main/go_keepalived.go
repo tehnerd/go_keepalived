@@ -12,8 +12,9 @@ func main() {
 		fmt.Println("usage: go_keepalived <cfg.file>")
 		os.Exit(-1)
 	}
-	slList := cfgparser.ReadCfg(os.Args[1])
+	slList, notifCfg := cfgparser.ReadCfg(os.Args[1])
 	fmt.Println(*slList)
+	fmt.Println(*notifCfg)
 	slList.Start()
 	wg := sync.WaitGroup{}
 	(&wg).Add(1)

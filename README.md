@@ -22,12 +22,15 @@ Other goals:
   * tcp and http/https healtchecks
   
   * signaling that real server has failed it's check/or check was successful
+
+  * bgp speaker/injector. now we can advertise/withdraw v4 routes into routing domain
+  (work in progress; https://github.com/tehnerd/bgp)
   
 basicly that gives us a minimal feature set to move on with other parts of the project.
 
 ### Future plans and TODOs:
-  * add bgp speaker (work in progress; https://github.com/tehnerd/go_bgpcp)
-  * add external api for services configuration (rest,grpc etc)
+  * add external api for services configuration (rest,grpc,thrift(if i able to find proper go's
+     thrift's compiler etc)
   * stability and features improvement (lots of things must be added)
   * proper IPv6 support (MUSTMUSTMUST; right now we dont check/parse etc addresses of the reals and vip's)
   * ...
