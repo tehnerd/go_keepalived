@@ -24,7 +24,7 @@ Other goals:
   * signaling that real server has failed it's check/or check was successful
 
   * bgp speaker/injector. now we can advertise/withdraw v4 routes into routing domain
-  (work in progress; https://github.com/tehnerd/bgp)
+  (work in progress; https://github.com/tehnerd/bgp2go)
   
 basicly that gives us a minimal feature set to move on with other parts of the project.
 
