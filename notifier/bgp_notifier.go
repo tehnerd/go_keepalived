@@ -2,11 +2,13 @@ package notifier
 
 import (
 	"github.com/tehnerd/bgp2go"
+	"regexp"
 	"strings"
 )
 
 func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 	notifierConfig NotifierConfig) {
+	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
 	bgpMainContext := bgp2go.BGPContext{ASN: notifierConfig.ASN, ListenLocal: notifierConfig.ListenLocal}
 	toBGPProcess := make(chan bgp2go.BGPProcessMsg)
 	fromBGPProcess := make(chan bgp2go.BGPProcessMsg)
@@ -55,10 +57,19 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 				Cmnd: "WithdrawV4Route",
 				Data: Route}
 		case "AddPeer":
-			//TODO: check/parse v4/v6
-			toBGPProcess <- bgp2go.BGPProcessMsg{
-				Cmnd: "AddNeighbour",
-				Data: msg.Data}
+			if v4re.MatchString(msg.Data) {
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "AddNeighbour",
+					Data: msg.Data}
+			} else {
+				//TODO: sanity check for v6 address
+				//for ResolveTCPAddr to work ipv6 must be in format [<addr>]
+				data := strings.Join([]string{"[", msg.Data, "]"}, "")
+				data = strings.Join([]string{data, "inet6"}, " ")
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "AddNeighbour",
+					Data: data}
+			}
 			//TODO: RemovePeer here and in simple_bgp_injector
 		}
 
