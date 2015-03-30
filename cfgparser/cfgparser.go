@@ -6,6 +6,7 @@ import (
 	"go_keepalived/notifier"
 	"go_keepalived/service"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,8 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 		fmt.Println("cant open cfg file")
 		os.Exit(-1)
 	}
+	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
+	v6re, _ := regexp.Compile(`^\[((\d|a|b|c|d|e|f|A|B|C|D|E|F){0,4}\:?){1,8}\]$`)
 	sl := service.ServicesList{}
 	nc := notifier.NotifierConfig{}
 	sl.Init()
@@ -53,6 +56,12 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 				fmt.Println(fields)
 				os.Exit(-1)
 			}
+			if len(v4re.FindString(fields[1])) == 0 && len(v6re.FindString(fields[1])) == 0 {
+				fmt.Println("line: ", line)
+				fmt.Println("error in srvc address")
+				fmt.Println(fields)
+				os.Exit(-1)
+			}
 			if fields[3] != "{" {
 				fmt.Println("line: ", line)
 				fmt.Println("error in parsing service's defenition\n must be service <vip> <port> {")
@@ -71,6 +80,12 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 			if sectionCntr != 1 {
 				fmt.Println("line: ", line)
 				fmt.Println("error in cfg file. it seems that you defined real inside other real or real outside of service")
+				fmt.Println(fields)
+				os.Exit(-1)
+			}
+			if len(v4re.FindString(fields[1])) == 0 && len(v6re.FindString(fields[1])) == 0 {
+				fmt.Println("line: ", line)
+				fmt.Println("error in real address")
 				fmt.Println(fields)
 				os.Exit(-1)
 			}

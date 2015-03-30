@@ -9,6 +9,7 @@ import (
 func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 	notifierConfig NotifierConfig) {
 	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
+	v6re, _ := regexp.Compile(`^\[(((\d|a|b|c|d|e|f|A|B|C|D|E|F){0,4}\:?){1,8})\]$`)
 	bgpMainContext := bgp2go.BGPContext{ASN: notifierConfig.ASN, ListenLocal: notifierConfig.ListenLocal}
 	toBGPProcess := make(chan bgp2go.BGPProcessMsg)
 	fromBGPProcess := make(chan bgp2go.BGPProcessMsg)
@@ -33,10 +34,21 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 			}
 			//TODO: check/parse if route v4 or v6
 			//we advertise or withdraw only host routes
-			Route := strings.Join([]string{msg.Data, "/32"}, "")
-			toBGPProcess <- bgp2go.BGPProcessMsg{
-				Cmnd: "AddV4Route",
-				Data: Route}
+			if v4re.MatchString(msg.Data) {
+				Route := strings.Join([]string{msg.Data, "/32"}, "")
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "AddV4Route",
+					Data: Route}
+			} else {
+				//TODO: mb use regexp findstring instead
+				prefix := v6re.FindStringSubmatch(msg.Data)
+				if len(prefix) >= 2 {
+					Route := strings.Join([]string{prefix[1], "/128"}, "")
+					toBGPProcess <- bgp2go.BGPProcessMsg{
+						Cmnd: "AddV6Route",
+						Data: Route}
+				}
+			}
 		case "WithdrawService":
 			if _, exists := serviceTable[msg.Data]; exists {
 				if serviceTable[msg.Data] == 0 {
@@ -52,10 +64,22 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 			}
 			//TODO: check/parse if route v4 or v6
 			//we advertise or withdraw only host routes
-			Route := strings.Join([]string{msg.Data, "/32"}, "")
-			toBGPProcess <- bgp2go.BGPProcessMsg{
-				Cmnd: "WithdrawV4Route",
-				Data: Route}
+
+			if v4re.MatchString(msg.Data) {
+				Route := strings.Join([]string{msg.Data, "/32"}, "")
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "WithdrawV4Route",
+					Data: Route}
+			} else {
+				prefix := v6re.FindStringSubmatch(msg.Data)
+				if len(prefix) >= 2 {
+
+					Route := strings.Join([]string{prefix[1], "/128"}, "")
+					toBGPProcess <- bgp2go.BGPProcessMsg{
+						Cmnd: "WithdrawV6Route",
+						Data: Route}
+				}
+			}
 		case "AddPeer":
 			if v4re.MatchString(msg.Data) {
 				toBGPProcess <- bgp2go.BGPProcessMsg{
