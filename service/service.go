@@ -58,11 +58,15 @@ type ServiceMsg struct {
 }
 
 type ServicesList struct {
-	List         []Service
-	ToAdapter    chan adapter.AdapterMsg
-	ToNotifier   chan notifier.NotifierMsg
-	FromNotifier chan notifier.NotifierMsg
-	logWriter    *syslog.Writer
+	List            []Service
+	ToAdapter       chan adapter.AdapterMsg
+	FromAdapter     chan adapter.AdapterMsg
+	ToNotifier      chan notifier.NotifierMsg
+	FromNotifier    chan notifier.NotifierMsg
+	ToServiceList   chan ServiceMsg
+	FromServiceList chan ServiceMsg
+	Testing         bool
+	logWriter       *syslog.Writer
 }
 
 /*
@@ -76,9 +80,12 @@ func (sl *ServicesList) Init() {
 		panic("cant connect to syslog")
 	}
 	sl.ToAdapter = make(chan adapter.AdapterMsg)
+	sl.FromAdapter = make(chan adapter.AdapterMsg)
 	sl.ToNotifier = make(chan notifier.NotifierMsg)
 	sl.FromNotifier = make(chan notifier.NotifierMsg)
-	go adapter.StartAdapter(sl.ToAdapter, sl.ToNotifier)
+	sl.ToServiceList = make(chan ServiceMsg)
+	sl.FromServiceList = make(chan ServiceMsg)
+	go adapter.StartAdapter(sl.ToAdapter, sl.FromAdapter, sl.ToNotifier)
 	sl.logWriter = writer
 }
 
@@ -138,6 +145,9 @@ func (sl *ServicesList) Remove(srvc Service) {
 */
 
 func (sl *ServicesList) Start() {
+	if sl.Testing {
+		sl.ToAdapter <- adapter.AdapterMsg{Type: "StartTesting"}
+	}
 	for cntr := 0; cntr < len(sl.List); cntr++ {
 		go sl.List[cntr].StartService()
 	}

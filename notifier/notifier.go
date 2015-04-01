@@ -1,5 +1,7 @@
 package notifier
 
+import "fmt"
+
 //TODO: logging
 
 /*
@@ -46,6 +48,7 @@ func Notifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 
 func DummyNotifier(msgChan chan NotifierMsg) {
 	for {
-		<-msgChan
+		msg := <-msgChan
+		fmt.Printf("Dummy Notifier: %#v\n", msg)
 	}
 }

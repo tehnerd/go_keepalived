@@ -3,6 +3,7 @@ package cfgparser
 import (
 	"bufio"
 	"fmt"
+	"go_keepalived/api"
 	"go_keepalived/notifier"
 	"go_keepalived/service"
 	"os"
@@ -27,13 +28,16 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 	srvc := service.Service{}
 	srvc.Init()
 	rlSrv := service.RealServer{}
+	API := api.GenericAPI{}
 	/*
 		counting "{"; so we will be able to see when old servicse defenition stops and new one starts
 	*/
 	sectionCntr := 0
+	//Flags
 	generalCfg := false
 	serviceCfg := false
 	notifierCfg := false
+	apiCfg := false
 
 	scanner := bufio.NewScanner(fd)
 	/* main section of cfg parsing */
@@ -115,6 +119,17 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 			nc.Type = fields[1]
 			notifierCfg = true
 			sectionCntr++
+		} else if fields[0] == "api" {
+			if sectionCntr != 1 || (len(fields) != 2 && fields[1] != "{") || generalCfg != true {
+				fmt.Println("line: ", line)
+				fmt.Println("error in parsing api's cfg defenition\n must be api {")
+				os.Exit(-1)
+			}
+			apiCfg = true
+			API.Enable = true
+			sectionCntr++
+		} else if fields[0] == "testing" {
+			sl.Testing = true
 		} else if fields[0] == "}" {
 			if sectionCntr == 2 {
 				if serviceCfg == true {
@@ -123,6 +138,9 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 				}
 				if notifierCfg == true {
 					notifierCfg = false
+				}
+				if apiCfg == true {
+					apiCfg = false
 				}
 				sectionCntr--
 			} else if sectionCntr == 1 {
@@ -197,9 +215,17 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 				} else if fields[0] == "neighbour" {
 					nc.NeighboursList = append(nc.NeighboursList, fields[1])
 				}
+			} else if apiCfg == true {
+				//TODO: custom ports etc
+				if fields[0] == "http" {
+					API.HttpApi = true
+				}
 			}
 		}
 	}
 	sl.AddNotifier(nc)
+	if API.Enable {
+		go api.InitAPI(API, sl.ToServiceList, sl.FromServiceList)
+	}
 	return &sl, &nc
 }

@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"fmt"
 	"go_keepalived/notifier"
 )
 
@@ -40,19 +41,31 @@ type AdapterMsg struct {
 	RealServerWeight string
 }
 
-func StartAdapter(msgChan chan AdapterMsg, notifierChan chan notifier.NotifierMsg) {
+func StartAdapter(msgChan, replyChan chan AdapterMsg, notifierChan chan notifier.NotifierMsg) {
 	loop := 1
+	testing := false
 	for loop == 1 {
 		select {
 		case msg := <-msgChan:
+			if msg.Type == "StartTesting" {
+				testing = true
+				continue
+			} else if msg.Type == "StopTesting" {
+				testing = false
+				continue
+			}
 			/*
 				TODO: if we ever gonna have more than ipvs adapter we need to add here
 				adapter's type check
 			*/
-			err := IPVSAdmExec(&msg)
-			if err != nil {
-				//TODO: proper handling
-				continue
+			if !testing {
+				err := IPVSAdmExec(&msg)
+				if err != nil {
+					//TODO: proper handling
+					continue
+				}
+			} else {
+				DummyAdapter(&msg)
 			}
 			/*
 				The whole purpose of notifier is to tell about state of our services to
@@ -61,4 +74,8 @@ func StartAdapter(msgChan chan AdapterMsg, notifierChan chan notifier.NotifierMs
 			notifierChan <- notifier.NotifierMsg{Type: msg.Type, Data: msg.ServiceVIP}
 		}
 	}
+}
+
+func DummyAdapter(msg *AdapterMsg) {
+	fmt.Printf("Dummy Adapter Msg: %#v\n", msg)
 }
