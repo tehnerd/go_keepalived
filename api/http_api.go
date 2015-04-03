@@ -22,12 +22,24 @@ func handler(w http.ResponseWriter, r *http.Request, requestChan,
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&requestStruct)
 	if err != nil {
-		fmt.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	fmt.Printf("%#v\n", requestStruct)
-	w.Write([]byte("Test"))
+	if _, exists := requestStruct["Command"]; !exists {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Command argument is required"))
+		return
+	}
+	requestChan <- APIMsg{Data: &requestStruct}
+	responseStruct := <-responseChan
+	resp, err := json.Marshal(responseStruct)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("cant marshal json response"))
+		return
+	}
+	w.Write(resp)
 }
 
 //TODO: https instead of http

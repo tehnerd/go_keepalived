@@ -6,6 +6,7 @@ import (
 	"go_keepalived/healthchecks"
 	"go_keepalived/notifier"
 	"log/syslog"
+	"strconv"
 	"strings"
 )
 
@@ -53,8 +54,9 @@ type Service struct {
 		"Shutdown" (Service->RS) if we want to remove realServer from service context
 */
 type ServiceMsg struct {
-	Cmnd string
-	Data string
+	Cmnd    string
+	Data    string
+	DataMap *map[string]string
 }
 
 type ServicesList struct {
@@ -139,11 +141,6 @@ func (sl *ServicesList) Remove(srvc Service) {
 	}
 }
 
-/*
- Funcs for working with Service container and
- real servers inside Service container
-*/
-
 func (sl *ServicesList) Start() {
 	if sl.Testing {
 		sl.ToAdapter <- adapter.AdapterMsg{Type: "StartTesting"}
@@ -151,7 +148,14 @@ func (sl *ServicesList) Start() {
 	for cntr := 0; cntr < len(sl.List); cntr++ {
 		go sl.List[cntr].StartService()
 	}
+	go DispatchSLMsgs(sl)
 }
+
+/*
+ Funcs for working with Service container and
+ real servers inside Service container
+ TODO: move to sep file?
+*/
 
 func (srvc *Service) Init() {
 	srvc.Timeout = 1
@@ -266,6 +270,15 @@ func (srvc *Service) StartService() {
 				if rlSrv != nil {
 					srvc.RemoveReal(rlSrv, index, false)
 				}
+			}
+		case msgFromSL := <-srvc.ToService:
+			switch msgFromSL.Cmnd {
+			case "GetInfo":
+				data := strings.Join([]string{
+					"State: ", strconv.FormatBool(srvc.State),
+					"Alive Reals: ", strconv.Itoa(srvc.AliveReals),
+					"Quorum: ", strconv.Itoa(srvc.Quorum)}, " ")
+				srvc.FromService <- ServiceMsg{Data: data}
 			}
 		}
 	}

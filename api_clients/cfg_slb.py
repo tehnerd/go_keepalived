@@ -7,17 +7,33 @@ except ImportError:
 import json
 import sys
 
+class slbAPI(object):
+
+    def __init__(self, endpoint):
+        self._endpoint = endpoint
+
+    def ExecCmnd(self,cmnd_data):
+        try:
+            request = urllib_request.Request(self._endpoint,cmnd_data)
+            reader = urllib_request.urlopen(request)
+            api_response = reader.read()
+            resp = json.loads(api_response)
+            return resp
+        except urllib_request.HTTPError:
+            #TODO: more meaningfull comment; more errors handling
+            return {"result":"error during api urllib_request"}
+        except:
+            return {"result":"generic error"}
+
+        
+
 
 def main():
         url = sys.argv[1]
-        data = json.dumps({"cmnd":"get info","service":"192.168.1.1"})
-        try:
-            request = urllib_request.Request(url,data)
-            reader = urllib_request.urlopen(request)
-            response = reader.read()
-            print(response)
-        except urllib_request.HTTPError:
-            print("wrong request's type")
+        slb = slbAPI(url)
+        data = json.dumps({"Command":"GetInfo","service":"192.168.1.1"})
+        resp = slb.ExecCmnd(data)
+        print(resp)
 
 
 if __name__ == "__main__":
