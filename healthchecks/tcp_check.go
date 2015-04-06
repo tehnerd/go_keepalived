@@ -17,10 +17,18 @@ func TCPCheck(toCheck, fromCheck chan int, checkLine []string, timeOut int) {
 			tcpConn, err := net.DialTimeout("tcp", Addr,
 				time.Second*time.Duration(timeOut))
 			if err != nil {
-				fromCheck <- 0
+				select {
+				case fromCheck <- 0:
+				case <-toCheck:
+					loop = 0
+				}
 			} else {
-				fromCheck <- 1
-				tcpConn.Close()
+				select {
+				case fromCheck <- 1:
+					tcpConn.Close()
+				case <-toCheck:
+					loop = 0
+				}
 			}
 		}
 	}

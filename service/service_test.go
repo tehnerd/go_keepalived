@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"go_keepalived/adapter"
+	"go_keepalived/notifier"
 	"log/syslog"
 	"testing"
 	"time"
@@ -39,14 +40,21 @@ func TestServicesListRemove(t *testing.T) {
 	srvc2 := Service{VIP: "127.0.0.2", Proto: "tcp", Port: "22"}
 	srvc3 := Service{VIP: "127.0.0.3", Proto: "tcp", Port: "22"}
 	srvc4 := Service{VIP: "127.0.0.4", Proto: "tcp", Port: "22"}
+	srvc1.Init()
+	srvc2.Init()
+	srvc3.Init()
+	srvc4.Init()
 	srvcList := ServicesList{}
 	srvcList.Init()
-	srvcList.ToAdapter = make(chan adapter.AdapterMsg)
-	go DummyAdapterReader(srvcList.ToAdapter)
+	nc := notifier.NotifierConfig{}
+	nc.Type = "Testing"
+	srvcList.AddNotifier(nc)
+	srvcList.Testing = true
 	srvcList.Add(srvc1)
 	srvcList.Add(srvc2)
 	srvcList.Add(srvc3)
 	srvcList.Add(srvc4)
+	srvcList.Start()
 	srvcList.Remove(srvc4)
 	if len(srvcList.List) != 3 {
 		t.Errorf("error in adding services")

@@ -1,7 +1,9 @@
 package api
 
 import (
+	"fmt"
 	"go_keepalived/service"
+	"regexp"
 )
 
 type APIMsg struct {
@@ -68,6 +70,45 @@ func ProcessApiRequest(api *GenericAPI, request APIMsg) map[string]string {
 		api.ToServiceList <- service.ServiceMsg{Cmnd: "GetInfo"}
 		resp := <-api.FromServiceList
 		return (*resp.DataMap)
+	case "AddService":
+		err := serviceSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "AddService", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
+	case "RemoveService":
+		err := serviceSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "RemoveService", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
+
+	}
+	return nil
+}
+
+func serviceSanityCheck(request *map[string]string) error {
+	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
+	v6re, _ := regexp.Compile(`^\[((\d|a|b|c|d|e|f|A|B|C|D|E|F){0,4}\:?){1,8}\]$`)
+	numRe, _ := regexp.Compile(`^\d+$`)
+	if vip, exists := (*request)["VIP"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory VIP field\n")
+	} else {
+		if !v4re.MatchString(vip) && !v6re.MatchString(vip) {
+			return fmt.Errorf("VIP is not v4 or v6 address\n")
+		}
+	}
+	if _, exists := (*request)["Proto"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory Proto field\n")
+	}
+	if port, exists := (*request)["Port"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory Port field\n")
+	} else if !numRe.MatchString(port) {
+		return fmt.Errorf("port must be a number\n")
 	}
 	return nil
 }

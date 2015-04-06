@@ -91,13 +91,13 @@ func (sl *ServicesList) Init() {
 	sl.logWriter = writer
 }
 
-func (sl *ServicesList) Add(srvc Service) {
+func (sl *ServicesList) Add(srvc Service) error {
 	for cntr := 0; cntr < len(sl.List); cntr++ {
 		if sl.List[cntr].isEqual(&srvc) {
 			logMsg := strings.Join([]string{"service already exists", srvc.VIP, " ",
 				srvc.Proto, ":", srvc.Port}, " ")
 			sl.logWriter.Write([]byte(logMsg))
-			return
+			return fmt.Errorf("service already exists")
 		}
 	}
 	srvc.logWriter = sl.logWriter
@@ -106,7 +106,7 @@ func (sl *ServicesList) Add(srvc Service) {
 	logMsg := strings.Join([]string{"added new service", srvc.VIP, " ",
 		srvc.Proto, ":", srvc.Port}, " ")
 	sl.logWriter.Write([]byte(logMsg))
-
+	return nil
 }
 
 func (sl *ServicesList) AddNotifier(notifierCfg notifier.NotifierConfig) {
@@ -125,20 +125,32 @@ func (srvc *Service) isEqual(otherSrvc *Service) bool {
 	}
 }
 
-//TODO: logic with  channel to kill service's goroutine
-func (sl *ServicesList) Remove(srvc Service) {
+func (sl *ServicesList) FindService(srvc *Service) int {
+	for num, localSrvc := range sl.List {
+		if localSrvc.isEqual(srvc) {
+			return num
+		}
+	}
+	return -1
+}
+
+func (sl *ServicesList) Remove(srvc Service) error {
 	for cntr := 0; cntr < len(sl.List); cntr++ {
 		if sl.List[cntr].isEqual(&srvc) {
+			removedSrvc := sl.List[cntr]
 			if cntr != len(sl.List)-1 {
 				sl.List = append(sl.List[:cntr], sl.List[cntr+1:]...)
 			} else {
 				sl.List = sl.List[:cntr]
 			}
+			removedSrvc.ToService <- ServiceMsg{Cmnd: "RemoveService"}
 			logMsg := strings.Join([]string{"removed service", srvc.VIP, " ",
-				srvc.Proto, ":", srvc.Port}, " ")
+				srvc.Proto, ":", srvc.Port, " from services list"}, " ")
 			sl.logWriter.Write([]byte(logMsg))
+			return nil
 		}
 	}
+	return fmt.Errorf("service doesnt exists\n")
 }
 
 func (sl *ServicesList) Start() {
@@ -279,6 +291,20 @@ func (srvc *Service) StartService() {
 					"Alive Reals: ", strconv.Itoa(srvc.AliveReals),
 					"Quorum: ", strconv.Itoa(srvc.Quorum)}, " ")
 				srvc.FromService <- ServiceMsg{Data: data}
+			case "RemoveService":
+				if srvc.State {
+					srvc.ToAdapter <- GenerateAdapterMsg("WithdrawService", srvc, nil)
+				}
+				for _, rlSrv := range srvc.Reals {
+					rlSrv.ToReal <- ServiceMsg{Cmnd: "Shutdown"}
+					//TODO: check if real was alive
+					srvc.ToAdapter <- GenerateAdapterMsg("DeleteRealServer", srvc, &rlSrv)
+				}
+				//TODO: remove service from adapter
+				logMsg := strings.Join([]string{"service ", srvc.VIP,
+					srvc.Port, srvc.Proto, " successfully shuted down"}, " ")
+				srvc.logWriter.Write([]byte(logMsg))
+				loop = 0
 			}
 		}
 	}
@@ -343,6 +369,7 @@ func (rlSrv *RealServer) StartReal() {
 		case msgToReal := <-rlSrv.ToReal:
 			switch msgToReal.Cmnd {
 			case "Shutdown":
+				toCheck <- 1
 				loop = 0
 			}
 		}

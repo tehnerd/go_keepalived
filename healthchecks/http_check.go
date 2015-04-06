@@ -19,13 +19,25 @@ func HTTPCheck(toCheck, fromCheck chan int, checkLine []string, timeOut int) {
 		case <-time.After(time.Second * time.Duration(timeOut)):
 			resp, err := client.Get(checkLine[0])
 			if err != nil {
-				fromCheck <- 0
+				select {
+				case fromCheck <- 0:
+				case <-toCheck:
+					loop = 0
+				}
 			} else if resp.StatusCode != http.StatusOK {
-				fromCheck <- 0
-				resp.Body.Close()
+				select {
+				case fromCheck <- 0:
+					resp.Body.Close()
+				case <-toCheck:
+					loop = 0
+				}
 			} else {
-				fromCheck <- 1
-				resp.Body.Close()
+				select {
+				case fromCheck <- 1:
+					resp.Body.Close()
+				case <-toCheck:
+					loop = 0
+				}
 			}
 		}
 	}
