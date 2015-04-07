@@ -41,6 +41,25 @@ def main():
         data = json.dumps({"Command":"AddService","VIP":"192.168.1.2","Port":"80","Proto":"tcp"})
         resp = slb.ExecCmnd(data)
         print(resp)
+        data = json.dumps({"Command":"AddReal","VIP":"192.168.1.2","Port":"80","Proto":"tcp",
+                           "RIP":"87.250.242.147","RealPort":"22","Check":"tcp"})
+        resp = slb.ExecCmnd(data)
+        print(resp)
+        data = json.dumps({"Command":"GetInfo","service":"192.168.1.1"})
+        resp = slb.ExecCmnd(data)
+        print(resp)
+        data = json.dumps({"Command":"RemoveReal","VIP":"192.168.1.1","Port":"22","Proto":"tcp",
+                           "RIP":"192.168.132.1","RealPort":"22","Check":"tcp"})
+        resp = slb.ExecCmnd(data)
+        print(resp)
+        '''
+        data = json.dumps({"Command":"AddReal","VIP":"192.168.1.1","Port":"22","Proto":"tcp",
+                           "RIP":"192.168.132.1","RealPort":"22","Check":"tcp"})
+        resp = slb.ExecCmnd(data)
+        print(resp)
+        '''
+
+        '''
         data = json.dumps({"Command":"AddService","VIP":"192.168.1.2","Port":"80","Proto":"tcp"})
         resp = slb.ExecCmnd(data)
         print(resp)
@@ -71,6 +90,7 @@ def main():
         data = json.dumps({"Command":"GetInfo"})
         resp = slb.ExecCmnd(data)
         print(resp)
+        '''
 
 
 

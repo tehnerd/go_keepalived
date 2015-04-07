@@ -42,7 +42,6 @@ func InitAPI(api GenericAPI, ToServiceList, FromServiceList chan service.Service
 			} else {
 				api.FromApi <- APIMsg{Data: &map[string]string{"result": "wrong command"}}
 			}
-		case <-api.FromServiceList:
 		}
 	}
 }
@@ -86,7 +85,30 @@ func ProcessApiRequest(api *GenericAPI, request APIMsg) map[string]string {
 		api.ToServiceList <- service.ServiceMsg{Cmnd: "RemoveService", DataMap: request.Data}
 		resp := <-api.FromServiceList
 		return (*resp.DataMap)
-
+	case "AddReal":
+		err := serviceSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		err = realSrvSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "AddReal", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
+	case "RemoveReal":
+		err := serviceSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		err = realSrvSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "RemoveReal", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
 	}
 	return nil
 }
@@ -106,6 +128,28 @@ func serviceSanityCheck(request *map[string]string) error {
 		return fmt.Errorf("request doesnt has mandatory Proto field\n")
 	}
 	if port, exists := (*request)["Port"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory Port field\n")
+	} else if !numRe.MatchString(port) {
+		return fmt.Errorf("port must be a number\n")
+	}
+	return nil
+}
+
+func realSrvSanityCheck(request *map[string]string) error {
+	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
+	v6re, _ := regexp.Compile(`^\[((\d|a|b|c|d|e|f|A|B|C|D|E|F){0,4}\:?){1,8}\]$`)
+	numRe, _ := regexp.Compile(`^\d+$`)
+	if rip, exists := (*request)["RIP"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory RIP field\n")
+	} else {
+		if !v4re.MatchString(rip) && !v6re.MatchString(rip) {
+			return fmt.Errorf("RIP is not v4 or v6 address\n")
+		}
+	}
+	if _, exists := (*request)["Check"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory Check field\n")
+	}
+	if port, exists := (*request)["RealPort"]; !exists {
 		return fmt.Errorf("request doesnt has mandatory Port field\n")
 	} else if !numRe.MatchString(port) {
 		return fmt.Errorf("port must be a number\n")

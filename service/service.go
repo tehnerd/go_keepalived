@@ -176,14 +176,14 @@ func (srvc *Service) Init() {
 	srvc.FromReal = make(chan ServiceMsg)
 }
 
-func (srvc *Service) FindRealFromMsgData(msgData string) *RealServer {
+func (srvc *Service) FindRealFromMsgData(msgData string) (*RealServer, int) {
 	//right now we always have msg data in format "rip port (meta)?"
 	dataFields := strings.Fields(msgData)
 	if len(dataFields) != 3 {
 		dataFields = append(dataFields, "")
 	}
-	rlSrv, _ := srvc.FindReal(dataFields[0], dataFields[1], dataFields[2])
-	return rlSrv
+	rlSrv, i := srvc.FindReal(dataFields[0], dataFields[1], dataFields[2])
+	return rlSrv, i
 }
 
 func (srvc *Service) FindReal(RIP, Port, Meta string) (*RealServer, int) {
@@ -193,7 +193,7 @@ func (srvc *Service) FindReal(RIP, Port, Meta string) (*RealServer, int) {
 			return rlSrv, cntr
 		}
 	}
-	return nil, 0
+	return nil, -1
 }
 
 func (srvc *Service) RemoveReal(rlSrv *RealServer, index int, notifyReal bool) {
@@ -206,6 +206,7 @@ func (srvc *Service) RemoveReal(rlSrv *RealServer, index int, notifyReal bool) {
 	} else {
 		srvc.Reals = append(srvc.Reals[:index], srvc.Reals[index+1:]...)
 	}
+	srvc.ToAdapter <- GenerateAdapterMsg("DeleteRealServer", srvc, rlSrv)
 	logMsg := strings.Join([]string{"removing real server", rlSrv.RIP, rlSrv.Port,
 		rlSrv.Meta, "for service", srvc.VIP, srvc.Port, srvc.Proto}, " ")
 	srvc.logWriter.Write([]byte(logMsg))
@@ -240,7 +241,7 @@ func (srvc *Service) StartService() {
 				srvc.AliveReals--
 				logMsg := strings.Join([]string{"real server", msg.Data, "now dead"}, " ")
 				srvc.logWriter.Write([]byte(logMsg))
-				rlSrv := srvc.FindRealFromMsgData(msg.Data)
+				rlSrv, _ := srvc.FindRealFromMsgData(msg.Data)
 				if rlSrv != nil {
 					srvc.ToAdapter <- GenerateAdapterMsg("DeleteRealServer", srvc, rlSrv)
 				}
@@ -255,7 +256,7 @@ func (srvc *Service) StartService() {
 				srvc.AliveReals++
 				logMsg := strings.Join([]string{"real server", msg.Data, "now alive"}, " ")
 				srvc.logWriter.Write([]byte(logMsg))
-				rlSrv := srvc.FindRealFromMsgData(msg.Data)
+				rlSrv, _ := srvc.FindRealFromMsgData(msg.Data)
 				if rlSrv != nil {
 					srvc.ToAdapter <- GenerateAdapterMsg("AddRealServer", srvc, rlSrv)
 				}
@@ -305,6 +306,35 @@ func (srvc *Service) StartService() {
 					srvc.Port, srvc.Proto, " successfully shuted down"}, " ")
 				srvc.logWriter.Write([]byte(logMsg))
 				loop = 0
+			case "AddReal":
+				rlSrv := realSrvFromDefinition(msgFromSL.DataMap)
+				i := srvc.AddReal(rlSrv)
+				if i == -1 {
+					srvc.FromService <- ServiceMsg{Data: "RealAlreadyExists"}
+					break
+				}
+				go srvc.Reals[i].StartReal()
+				srvc.FromService <- ServiceMsg{Data: "RealAdded"}
+			case "RemoveReal":
+				rlSrv, i := srvc.FindRealFromMsgData(msgFromSL.Data)
+				if rlSrv == nil {
+					srvc.FromService <- ServiceMsg{Data: "RealDoesntExists"}
+					break
+				}
+				if rlSrv.State {
+					/* TODO: possible sync issue */
+					srvc.ToAdapter <- GenerateAdapterMsg("DeleteRealServer", srvc, rlSrv)
+					srvc.AliveReals--
+					if srvc.AliveReals < srvc.Quorum && srvc.State == true {
+						srvc.State = false
+						logMsg := strings.Join([]string{"turning down service", srvc.VIP,
+							srvc.Port, srvc.Proto}, " ")
+						srvc.logWriter.Write([]byte(logMsg))
+						srvc.ToAdapter <- GenerateAdapterMsg("WithdrawService", srvc, nil)
+					}
+				}
+				srvc.RemoveReal(rlSrv, i, true)
+				srvc.FromService <- ServiceMsg{Data: "RealRemoved"}
 			}
 		}
 	}
@@ -357,24 +387,37 @@ func (rlSrv *RealServer) StartReal() {
 				if rlSrv.State == false {
 					rlSrv.State = true
 					DataString := rlSrv.ServiceMsgDataString()
-					rlSrv.ToService <- ServiceMsg{Cmnd: "Alive", Data: DataString}
+					select {
+					case rlSrv.ToService <- ServiceMsg{Cmnd: "Alive", Data: DataString}:
+					case msgToReal := <-rlSrv.ToReal:
+						ProccessCmndToReal(rlSrv, msgToReal, toCheck, &loop)
+					}
 				}
 			case 0:
 				if rlSrv.State == true {
 					rlSrv.State = false
 					DataString := rlSrv.ServiceMsgDataString()
-					rlSrv.ToService <- ServiceMsg{Cmnd: "Dead", Data: DataString}
+					select {
+					case rlSrv.ToService <- ServiceMsg{Cmnd: "Dead", Data: DataString}:
+					case msgToReal := <-rlSrv.ToReal:
+						ProccessCmndToReal(rlSrv, msgToReal, toCheck, &loop)
+					}
 				}
 			}
 		case msgToReal := <-rlSrv.ToReal:
-			switch msgToReal.Cmnd {
-			case "Shutdown":
-				toCheck <- 1
-				loop = 0
-			}
+			ProccessCmndToReal(rlSrv, msgToReal, toCheck, &loop)
 		}
 	}
 
+}
+
+func ProccessCmndToReal(rlSrv *RealServer, msg ServiceMsg,
+	toCheck chan int, flag *int) {
+	switch msg.Cmnd {
+	case "Shutdown":
+		toCheck <- 1
+		*flag = 0
+	}
 }
 
 func IsServiceValid(srvc Service) bool {
@@ -406,7 +449,7 @@ func (srvc *Service) AddReal(rlsrv RealServer) int {
 	rlsrv.ToService = srvc.FromReal
 	rlsrv.ToReal = make(chan ServiceMsg)
 	srvc.Reals = append(srvc.Reals, rlsrv)
-	return len(srvc.Reals)
+	return len(srvc.Reals) - 1
 
 }
 
