@@ -94,7 +94,21 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 					Cmnd: "AddNeighbour",
 					Data: data}
 			}
-			//TODO: RemovePeer here and in simple_bgp_injector
+		case "RemovePeer":
+			if v4re.MatchString(msg.Data) {
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "RemoveNeighbour",
+					Data: msg.Data}
+			} else {
+				//TODO: sanity check for v6 address
+				//for ResolveTCPAddr to work ipv6 must be in format [<addr>]
+				data := strings.Join([]string{"[", msg.Data, "]"}, "")
+				data = strings.Join([]string{data, "inet6"}, " ")
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "RemoveNeighbour",
+					Data: data}
+			}
+
 		}
 
 	}

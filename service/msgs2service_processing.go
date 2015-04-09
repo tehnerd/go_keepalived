@@ -1,6 +1,7 @@
 package service
 
 import (
+	"go_keepalived/notifier"
 	"strconv"
 	"strings"
 )
@@ -12,6 +13,7 @@ func DispatchSLMsgs(sl *ServicesList) {
 			responseStruct := make(map[string]string)
 			switch msg.Cmnd {
 			case "GetInfo":
+				//TODO: info from bgp notifier about peers, their state etc
 				for _, service := range sl.List {
 					service.ToService <- ServiceMsg{Cmnd: "GetInfo"}
 					serviceResponse := <-service.FromService
@@ -38,6 +40,17 @@ func DispatchSLMsgs(sl *ServicesList) {
 				vip := createVipName(srvc)
 				responseStruct["result"] = "true"
 				responseStruct["info"] = "Successfully removed service:" + vip
+			case "ChangeService":
+				srvc := serviceFromDefinition(msg.DataMap)
+				i := sl.FindService(&srvc)
+				if i == -1 {
+					break
+				}
+				sl.List[i].ToService <- ServiceMsg{Cmnd: "ChangeService", DataMap: msg.DataMap}
+				vip := createVipName(srvc)
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully changed service:" + vip
+
 			case "AddReal":
 				srvcName := serviceFromDefinition(msg.DataMap)
 				rlSrv := realSrvFromDefinition(msg.DataMap)
@@ -73,6 +86,30 @@ func DispatchSLMsgs(sl *ServicesList) {
 				} else {
 					responseStruct["result"] = "false"
 				}
+			case "ChangeReal":
+				srvcName := serviceFromDefinition(msg.DataMap)
+				rlSrv := realSrvFromDefinition(msg.DataMap)
+				i := sl.FindService(&srvcName)
+				if i == -1 {
+					break
+				}
+				sl.List[i].ToService <- ServiceMsg{Cmnd: "ChangeReal",
+					Data:    strings.Join([]string{rlSrv.RIP, rlSrv.Port, rlSrv.Meta}, " "),
+					DataMap: msg.DataMap}
+				vip := createVipName(sl.List[i])
+				rip := createRlSrvName(rlSrv)
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully changed real " + rip + " for service:" + vip
+			case "AddPeer":
+				sl.ToNotifier <- notifier.NotifierMsg{Type: "AddPeer", Data: (*msg.DataMap)["Address"]}
+				//TODO: read sl.FromNotifier for actual result
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully added peer: " + (*msg.DataMap)["Address"]
+			case "RemovePeer":
+				sl.ToNotifier <- notifier.NotifierMsg{Type: "RemovePeer", Data: (*msg.DataMap)["Address"]}
+				//TODO: read sl.FromNotifier for actual result
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully removed peer: " + (*msg.DataMap)["Address"]
 			}
 			sl.FromServiceList <- ServiceMsg{DataMap: (&responseStruct)}
 		}

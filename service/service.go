@@ -335,6 +335,11 @@ func (srvc *Service) StartService() {
 				}
 				srvc.RemoveReal(rlSrv, i, true)
 				srvc.FromService <- ServiceMsg{Data: "RealRemoved"}
+			case "ChangeService":
+				//TODO: actually implement something
+			case "ChangeReal":
+				//TODO: actually implement something
+
 			}
 		}
 	}

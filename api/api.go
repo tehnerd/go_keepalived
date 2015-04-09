@@ -85,6 +85,14 @@ func ProcessApiRequest(api *GenericAPI, request APIMsg) map[string]string {
 		api.ToServiceList <- service.ServiceMsg{Cmnd: "RemoveService", DataMap: request.Data}
 		resp := <-api.FromServiceList
 		return (*resp.DataMap)
+	case "ChangeService":
+		err := serviceSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "ChangeService", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
 	case "AddReal":
 		err := serviceSanityCheck(request.Data)
 		if err != nil {
@@ -109,6 +117,35 @@ func ProcessApiRequest(api *GenericAPI, request APIMsg) map[string]string {
 		api.ToServiceList <- service.ServiceMsg{Cmnd: "RemoveReal", DataMap: request.Data}
 		resp := <-api.FromServiceList
 		return (*resp.DataMap)
+	case "ChangeReal":
+		err := serviceSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		err = realSrvSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "ChangeReal", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
+	case "AddPeer":
+		err := peerSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "AddPeer", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
+	case "RemovePeer":
+		err := peerSanityCheck(request.Data)
+		if err != nil {
+			return nil
+		}
+		api.ToServiceList <- service.ServiceMsg{Cmnd: "AddPeer", DataMap: request.Data}
+		resp := <-api.FromServiceList
+		return (*resp.DataMap)
+
 	}
 	return nil
 }
@@ -153,6 +190,19 @@ func realSrvSanityCheck(request *map[string]string) error {
 		return fmt.Errorf("request doesnt has mandatory Port field\n")
 	} else if !numRe.MatchString(port) {
 		return fmt.Errorf("port must be a number\n")
+	}
+	return nil
+}
+
+func peerSanityCheck(request *map[string]string) error {
+	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
+	v6re, _ := regexp.Compile(`^((\d|a|b|c|d|e|f|A|B|C|D|E|F){0,4}\:?){1,8}$`)
+	if addr, exists := (*request)["Address"]; !exists {
+		return fmt.Errorf("request doesnt has mandatory Address field\n")
+	} else {
+		if !v4re.MatchString(addr) && !v6re.MatchString(addr) {
+			return fmt.Errorf("Address is not v4 or v6 address\n")
+		}
 	}
 	return nil
 }
