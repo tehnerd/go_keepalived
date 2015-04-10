@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -25,7 +24,6 @@ func handler(w http.ResponseWriter, r *http.Request, requestChan,
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("%#v\n", requestStruct)
 	if _, exists := requestStruct["Command"]; !exists {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Command argument is required"))

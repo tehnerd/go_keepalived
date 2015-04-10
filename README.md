@@ -26,11 +26,14 @@ Other goals:
   * bgp speaker/injector. now we can advertise/withdraw v4 routes into routing domain
   (work in progress; https://github.com/tehnerd/bgp2go)
   * initial IPv6 support (v6 vips + v6reals; TODO: v4 vips/v6 reals). we can advertise VIPs to bgp peers as well.
-
+  * initial support for http api (todo: httpS; more features)
+ 
 basicly that gives us a minimal feature set to move on with other parts of the project.
 
 ### Future plans and TODOs:
-  * add external api for services configuration (rest,grpc,thrift(if i able to find proper go's
+  * draft of howto/tutorial
+  * add more features into http api
+  * add other external apis for services configuration (grpc,thrift(if i able to find proper go's
      thrift's compiler etc)
   * stability and features improvement (lots of things must be added)
   * ...

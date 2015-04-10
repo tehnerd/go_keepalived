@@ -220,6 +220,10 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 				if fields[0] == "http" {
 					API.HttpApi = true
 				}
+				if fields[0] == "password" {
+					API.MasterPwd = fields[1]
+				}
+
 			}
 		}
 	}

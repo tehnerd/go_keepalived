@@ -6,15 +6,26 @@ except ImportError:
     import urllib2 as urllib_request
 import json
 import sys
+import hmac
+import hashlib
 
 class slbAPI(object):
 
-    def __init__(self, endpoint):
+    def __init__(self, endpoint, password):
         self._endpoint = endpoint
+        self._password = password
 
     def ExecCmnd(self,cmnd_data):
+        line = str()
+        keyList = list()
+        for key in cmnd_data:
+            keyList.append(key)
+        for key in sorted(keyList):
+            line = "".join((line,cmnd_data[key]))
+        cmnd_data["Digest"] = hmac.new(self._password, line, digestmod=hashlib.sha256).hexdigest()
+        data = json.dumps(cmnd_data)
         try:
-            request = urllib_request.Request(self._endpoint,cmnd_data)
+            request = urllib_request.Request(self._endpoint,data)
             reader = urllib_request.urlopen(request)
             api_response = reader.read()
             resp = json.loads(api_response)
@@ -34,25 +45,20 @@ def main():
         and testing the output; gona remove it later)
         '''
         url = sys.argv[1]
-        slb = slbAPI(url)
-        data = json.dumps({"Command":"GetInfo","service":"192.168.1.1"})
+        slb = slbAPI(url,"123")
+        data = {"Command":"GetInfo","service":"192.168.1.1"}
         resp = slb.ExecCmnd(data)
         print(resp)
-        data = json.dumps({"Command":"AddPeer","service":"192.168.1.1"})
+        data = {"Command":"AddService","VIP":"[fc12:1::2]","Port":"8080","Proto":"tcp"}
         resp = slb.ExecCmnd(data)
         print(resp)
-        data = json.dumps({"Command":"AddPeer","Address":"192.168.1.1.1"})
+        data = {"Command":"GetInfo","service":"192.168.1.1"}
         resp = slb.ExecCmnd(data)
         print(resp)
-        data = json.dumps({"Command":"AddPeer","Address":"192.168.1.1"})
+        data = {"Command":"StartAllNotification","VIP":"192.168.1.1"}
         resp = slb.ExecCmnd(data)
         print(resp)
-        data = json.dumps({"Command":"AddPeer","Address":"fc00::1"})
-        resp = slb.ExecCmnd(data)
-        print(resp)
-        data = json.dumps({"Command":"AddPeer","Address":"fc12:1::x"})
-        resp = slb.ExecCmnd(data)
-        print(resp)
+
 
 
 

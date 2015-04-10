@@ -110,6 +110,26 @@ func DispatchSLMsgs(sl *ServicesList) {
 				//TODO: read sl.FromNotifier for actual result
 				responseStruct["result"] = "true"
 				responseStruct["info"] = "Successfully removed peer: " + (*msg.DataMap)["Address"]
+			case "StopNotification":
+				sl.ToNotifier <- notifier.NotifierMsg{Type: "StopNotification", Data: (*msg.DataMap)["VIP"]}
+				//TODO: read sl.FromNotifier for actual result
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully stopped notification for: " + (*msg.DataMap)["VIP"]
+			case "StartNotification":
+				sl.ToNotifier <- notifier.NotifierMsg{Type: "StartNotification", Data: (*msg.DataMap)["VIP"]}
+				//TODO: read sl.FromNotifier for actual result
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully started notification for: " + (*msg.DataMap)["VIP"]
+			case "StopAllNotification":
+				sl.ToNotifier <- notifier.NotifierMsg{Type: "StopAllNotification"}
+				//TODO: read sl.FromNotifier for actual result
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully stopped all notification"
+			case "StartAllNotification":
+				sl.ToNotifier <- notifier.NotifierMsg{Type: "StartAllNotification"}
+				//TODO: read sl.FromNotifier for actual result
+				responseStruct["result"] = "true"
+				responseStruct["info"] = "Successfully started all notification"
 			}
 			sl.FromServiceList <- ServiceMsg{DataMap: (&responseStruct)}
 		}

@@ -19,6 +19,8 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 		//TODO: overflow check
 	*/
 	serviceTable := make(map[string]uint32)
+	silencedServices := make(map[string]bool)
+	stopAllNotifications := false
 	for {
 		msg := <-msgChan
 		switch msg.Type {
@@ -32,8 +34,9 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 			} else {
 				serviceTable[msg.Data] = 1
 			}
-			//TODO: check/parse if route v4 or v6
-			//we advertise or withdraw only host routes
+			if _, exists := silencedServices[msg.Data]; exists || stopAllNotifications {
+				continue
+			}
 			if v4re.MatchString(msg.Data) {
 				Route := strings.Join([]string{msg.Data, "/32"}, "")
 				toBGPProcess <- bgp2go.BGPProcessMsg{
@@ -62,9 +65,9 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 			} else {
 				continue
 			}
-			//TODO: check/parse if route v4 or v6
-			//we advertise or withdraw only host routes
-
+			if _, exists := silencedServices[msg.Data]; exists || stopAllNotifications {
+				continue
+			}
 			if v4re.MatchString(msg.Data) {
 				Route := strings.Join([]string{msg.Data, "/32"}, "")
 				toBGPProcess <- bgp2go.BGPProcessMsg{
@@ -78,6 +81,100 @@ func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 					toBGPProcess <- bgp2go.BGPProcessMsg{
 						Cmnd: "WithdrawV6Route",
 						Data: Route}
+				}
+			}
+		case "StopNotification":
+			if _, exists := silencedServices[msg.Data]; exists || stopAllNotifications {
+				continue
+			}
+			silencedServices[msg.Data] = true
+			if _, exists := serviceTable[msg.Data]; !exists {
+				continue
+			}
+			if v4re.MatchString(msg.Data) {
+				Route := strings.Join([]string{msg.Data, "/32"}, "")
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "WithdrawV4Route",
+					Data: Route}
+			} else {
+				prefix := v6re.FindStringSubmatch(msg.Data)
+				if len(prefix) >= 2 {
+
+					Route := strings.Join([]string{prefix[1], "/128"}, "")
+					toBGPProcess <- bgp2go.BGPProcessMsg{
+						Cmnd: "WithdrawV6Route",
+						Data: Route}
+				}
+			}
+		case "StartNotification":
+			if _, exists := silencedServices[msg.Data]; !exists || stopAllNotifications {
+				continue
+			}
+			delete(silencedServices, msg.Data)
+			if cntr, exists := serviceTable[msg.Data]; !exists {
+				continue
+			} else if cntr == 0 {
+				continue
+			}
+			if v4re.MatchString(msg.Data) {
+				Route := strings.Join([]string{msg.Data, "/32"}, "")
+				toBGPProcess <- bgp2go.BGPProcessMsg{
+					Cmnd: "AddV4Route",
+					Data: Route}
+			} else {
+				//TODO: mb use regexp findstring instead
+				prefix := v6re.FindStringSubmatch(msg.Data)
+				if len(prefix) >= 2 {
+					Route := strings.Join([]string{prefix[1], "/128"}, "")
+					toBGPProcess <- bgp2go.BGPProcessMsg{
+						Cmnd: "AddV6Route",
+						Data: Route}
+				}
+			}
+		case "StopAllNotification":
+			stopAllNotifications = true
+			for service, cntr := range serviceTable {
+				if _, exists := silencedServices[service]; exists {
+					delete(silencedServices, service)
+					continue
+				}
+				if cntr != 0 {
+					if v4re.MatchString(service) {
+						Route := strings.Join([]string{service, "/32"}, "")
+						toBGPProcess <- bgp2go.BGPProcessMsg{
+							Cmnd: "WithdrawV4Route",
+							Data: Route}
+					} else {
+						prefix := v6re.FindStringSubmatch(service)
+						if len(prefix) >= 2 {
+							Route := strings.Join([]string{prefix[1], "/128"}, "")
+							toBGPProcess <- bgp2go.BGPProcessMsg{
+								Cmnd: "WithdrawV6Route",
+								Data: Route}
+						}
+					}
+
+				}
+			}
+		case "StartAllNotification":
+			stopAllNotifications = false
+			for service, cntr := range serviceTable {
+				if cntr > 0 {
+					if v4re.MatchString(service) {
+						Route := strings.Join([]string{service, "/32"}, "")
+						toBGPProcess <- bgp2go.BGPProcessMsg{
+							Cmnd: "AddV4Route",
+							Data: Route}
+					} else {
+						prefix := v6re.FindStringSubmatch(service)
+						if len(prefix) >= 2 {
+							Route := strings.Join([]string{prefix[1], "/128"}, "")
+							toBGPProcess <- bgp2go.BGPProcessMsg{
+								Cmnd: "AddV6Route",
+								Data: Route}
+						}
+					}
+
 				}
 			}
 		case "AddPeer":
