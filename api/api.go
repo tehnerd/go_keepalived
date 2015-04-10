@@ -147,7 +147,7 @@ func ProcessApiRequest(api *GenericAPI, request APIMsg) map[string]string {
 		resp := <-api.FromServiceList
 		return (*resp.DataMap)
 	case "RemovePeer":
-		err := serviceSanityCheck(request.Data)
+		err := peerSanityCheck(request.Data)
 		if err != nil {
 			return nil
 		}
