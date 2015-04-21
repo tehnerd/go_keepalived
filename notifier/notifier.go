@@ -11,8 +11,6 @@ type NotifierMsg struct {
 
 	/*
 		   Message Type. It copies most of the messages types from adapter Could be:
-			"AddReal", - to advertise real to external domain
-			"DeleteReal", - withdraw route from external domain
 			"AddPeer", - add external point of notification (aka bgp peer in our cases; we dont have
 				any other way to notify so far; mb going to add "exec external script" notifier)
 			"RemovePeer", - remove external point of notificatio
