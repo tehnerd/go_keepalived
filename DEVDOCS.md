@@ -10,9 +10,9 @@ During startup we are reading configure from the cfg file (example could be foun
 cfgparser (cfgparser/cfgparser.go) using ReadCfg routine.
 
 This routine is responsible for the:
-1. parse config and exit the program if something goes wrong
-2. populate service.ServicesList, notifier.NotifierConfig and api.GenericAPI structs (more about this structs bellow)
-3. Starts API's goroutine at the end of the ReadCfg
+ 1. parse config and exit the program if something goes wrong
+ 2. populate service.ServicesList, notifier.NotifierConfig and api.GenericAPI structs (more about this structs bellow)
+ 3. Starts API's goroutine at the end of the ReadCfg
 
 after these steps control goes back to the main function.
 
@@ -77,8 +77,8 @@ Service module is responsible for the bookkeeping of the service's related infor
 (such as: how many reals alive; if service has enough alive reals; does it exceed quorum etc; for more info check Service struct)
 the code is pretty much selfexplained. we run one goroutine for each of the service (check func StartService() in service.go)
 and listens for events from:
-1. ServicesList: thru ToService chan. such as add/remove real. or shutdown the service.
-2. RealServers: thru FromReal chan. such as alive/dead or fatal error in real
+ 1. ServicesList: thru ToService chan. such as add/remove real. or shutdown the service.
+ 2. RealServers: thru FromReal chan. such as alive/dead or fatal error in real
 
 and notify adapter about this events (to add/remove alive/daed reals in forwarding path; or to send msg thru notifier)
 
@@ -86,8 +86,8 @@ and notify adapter about this events (to add/remove alive/daed reals in forwardi
 #####RealServer module (service.go; RealServer struct)
 RealServer module is responsible for bookkeeping information about healthcheks results toward this real
 it listens for:
-1. Events from healthcheck (if it was successfull or not).and if server became alive -> send this info to the Service goroutine.
-2. Events from Service (right now there is only one event: to shutdown/remove real from the pool. in future we could change checks and/or weight of the real etc)
+ 1. Events from healthcheck (if it was successfull or not).and if server became alive -> send this info to the Service goroutine.
+ 2. Events from Service (right now there is only one event: to shutdown/remove real from the pool. in future we could change checks and/or weight of the real etc)
 
 During startup this module starts healthcheck goroutine of particular (according to the configuration) type.
 right now we support tcp healthcheck and http/https (healtchecks/tcp_check.go and http_check.go)
