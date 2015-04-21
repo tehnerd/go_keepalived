@@ -3,9 +3,7 @@ for testing purpose you can add "testing" as a first line in cfg file. this stan
 of ipvsadm. also you need to change notifier's name from bgp to something else (in that case we will start dummy notifier instead of bgp2go)
 
 ##Project's architecture
-![alt text](https://github.com/tehnerd/go_keepalived/structure.jpg "Project's architecture")
-
-
+![alt text](https://github.com/tehnerd/go_keepalived/blob/master/structure.jpg?raw=true "Project's architecture")
 
 #### Startup process
 During startup we are reading configure from the cfg file (example could be found @ main/gokeepalived_test.cfg) with
