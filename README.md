@@ -1,5 +1,5 @@
 ## Golang based keepalive server
-
+[developer's documentation](https://github.com/tehnerd/go_keepalived/blob/master/DEVDOCS.md)
 ### Goals of the project
 The main goal of the project is to build keepalived-like server with easy way to decouple control plane
 and data path configuration (keepalived is tightly coupled with linux'es ipvs) and easy way to add new features
