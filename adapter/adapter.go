@@ -25,11 +25,12 @@ type AdapterMsg struct {
 	/*
 		We need to be able to distinguish one service from another. service could be
 		uniquely identified by: VIP,Proto,Port
+		Meta field: for misc info, such as scheduler's type etc
 	*/
 	ServiceVIP   string
 	ServicePort  string
 	ServiceProto string
-
+	ServiceMeta  string
 	/*
 		Same as for service, but for realServers. Could be identified by
 		RIP,Port,Meta. Also we want to be able to change Reals weight (in future)

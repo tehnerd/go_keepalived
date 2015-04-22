@@ -27,6 +27,7 @@ type Service struct {
 	VIP         string //Virtual IP address
 	Proto       string
 	Port        string
+	Scheduler   string
 	State       bool
 	AliveReals  int
 	Quorum      int
@@ -102,6 +103,10 @@ func (sl *ServicesList) Add(srvc Service) error {
 	}
 	srvc.logWriter = sl.logWriter
 	srvc.ToAdapter = sl.ToAdapter
+	//TODO(tehnerd): add check if in list of supported schedulers
+	if srvc.Scheduler == "" {
+		srvc.Scheduler = "wrr"
+	}
 	sl.List = append(sl.List, srvc)
 	logMsg := strings.Join([]string{"added new service", srvc.VIP, " ",
 		srvc.Proto, ":", srvc.Port}, " ")
@@ -223,6 +228,8 @@ func GenerateAdapterMsg(msgType string, srvc *Service, rlSrv *RealServer) adapte
 		adapterMsg.RealServerPort = rlSrv.Port
 		adapterMsg.RealServerWeight = rlSrv.Weight
 		adapterMsg.RealServerMeta = rlSrv.Meta
+	} else {
+		adapterMsg.ServiceMeta = srvc.Scheduler
 	}
 	return adapterMsg
 }

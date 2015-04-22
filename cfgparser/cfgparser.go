@@ -168,6 +168,8 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 			if serviceCfg == true {
 				if fields[0] == "proto" && sectionCntr == 1 {
 					srvc.Proto = fields[1]
+				} else if fields[0] == "scheduler" && sectionCntr == 1 {
+					srvc.Scheduler = fields[1]
 				} else if fields[0] == "quorum" && sectionCntr == 1 {
 					qnum, err := strconv.Atoi(fields[1])
 					if err != nil {

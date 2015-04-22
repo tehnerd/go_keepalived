@@ -19,7 +19,7 @@ type IPVSAdmCmnds struct {
 	RIP string
 	// "-A","-D","-a","-d", "-E", "-e"
 	ActionFlag string
-	// "-s"
+	// "-s"; select schedulers type
 	SchedFlag string
 	// "-t", "-u", "-f"
 	ProtoFlag string
@@ -56,6 +56,7 @@ func IPVSParseAdapterMsg(msg *AdapterMsg) IPVSAdmCmnds {
 		adapter
 	*/
 	ipvsCmnds.MetaInfo = "-m"
+	ipvsCmnds.SchedFlag = msg.ServiceMeta
 	return ipvsCmnds
 }
 
@@ -68,6 +69,8 @@ func IPVSCliArgs(ipvsCmnds *IPVSAdmCmnds) []string {
 		if ipvsCmnds.RealServerComand == 1 {
 			cliCmnds = append(cliCmnds, ipvsCmnds.MetaInfo)
 		}
+	} else {
+		cliCmnds = append(cliCmnds, "-s", ipvsCmnds.SchedFlag)
 	}
 	return cliCmnds
 }
