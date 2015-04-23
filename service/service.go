@@ -308,7 +308,7 @@ func (srvc *Service) StartService() {
 					//TODO: check if real was alive
 					srvc.ToAdapter <- GenerateAdapterMsg("DeleteRealServer", srvc, &rlSrv)
 				}
-				//TODO: remove service from adapter
+				srvc.ToAdapter <- GenerateAdapterMsg("DeleteService", srvc, nil)
 				logMsg := strings.Join([]string{"service ", srvc.VIP,
 					srvc.Port, srvc.Proto, " successfully shuted down"}, " ")
 				srvc.logWriter.Write([]byte(logMsg))
@@ -460,9 +460,11 @@ func (srvc *Service) AddReal(rlsrv RealServer) int {
 	rlsrv.Timeout = srvc.Timeout
 	rlsrv.ToService = srvc.FromReal
 	rlsrv.ToReal = make(chan ServiceMsg)
+	if rlsrv.Weight == "" {
+		rlsrv.Weight = "1"
+	}
 	srvc.Reals = append(srvc.Reals, rlsrv)
 	return len(srvc.Reals) - 1
-
 }
 
-//TODO: add remove and change realServer logic
+//TODO: change realServer logic

@@ -46,16 +46,9 @@ def main():
         '''
         url = sys.argv[1]
         slb = slbAPI(url,"123")
-        data = {"Command":"GetInfo","service":"192.168.1.1"}
-        resp = slb.ExecCmnd(data)
-        print(resp)
-        data = {"Command":"AddService","VIP":"[fc12:1::2]","Port":"8080","Proto":"tcp"}
-        resp = slb.ExecCmnd(data)
-        print(resp)
-        data = {"Command":"GetInfo","service":"192.168.1.1"}
-        resp = slb.ExecCmnd(data)
-        print(resp)
-        data = {"Command":"StartAllNotification","VIP":"192.168.1.1"}
+        #data = {"Command":"GetInfo"}
+        #data = {"Command":"AddService", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp"}
+        data = {"Command":"AddReal", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp", "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
         resp = slb.ExecCmnd(data)
         print(resp)
 

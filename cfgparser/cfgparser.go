@@ -200,7 +200,11 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 				} else if fields[0] == "meta" && sectionCntr == 2 {
 					meta := strings.Join(fields[1:], " ")
 					rlSrv.Meta = meta
+				} else if fields[0] == "weight" && sectionCntr == 2 {
+					weight := strings.Join(fields[1:], " ")
+					rlSrv.Weight = weight
 				}
+
 			} else if notifierCfg == true {
 				if fields[0] == "ASN" {
 					val, err := strconv.ParseUint(fields[1], 10, 32)

@@ -26,12 +26,13 @@ type IPVSAdmCmnds struct {
 	// "-w"
 	WeightFlag string
 	/*
-	 flag, which indicates that command must contain realServers info
-	 0 - means there is no realServer's info
-	 1 - add or change
-	 2 - delete
+	 flag, which indicates that command must include/exclude particular fields
+	 0 - means there is no realServer's info and we adding service
+	 1 - delete service
+	 128 - add or change real
+	 129 - delete real
 	*/
-	RealServerComand int
+	CommandFlag uint8
 	//method of lb; such as ipip or nat; -m or -i
 	MetaInfo string
 }
@@ -55,8 +56,9 @@ func IPVSParseAdapterMsg(msg *AdapterMsg) IPVSAdmCmnds {
 		metainfo hardcoded now just for the sake of implementing minimum working
 		adapter
 	*/
-	ipvsCmnds.MetaInfo = "-m"
+	ipvsCmnds.MetaInfo = msg.RealServerMeta
 	ipvsCmnds.SchedFlag = msg.ServiceMeta
+	ipvsCmnds.WeightFlag = msg.RealServerWeight
 	return ipvsCmnds
 }
 
@@ -64,13 +66,23 @@ func IPVSCliArgs(ipvsCmnds *IPVSAdmCmnds) []string {
 	cliCmnds := []string{}
 	cliCmnds = append(cliCmnds, ipvsCmnds.ActionFlag, ipvsCmnds.ProtoFlag,
 		ipvsCmnds.VIP)
-	if ipvsCmnds.RealServerComand > 0 {
+	if ipvsCmnds.CommandFlag > 127 {
 		cliCmnds = append(cliCmnds, "-r", ipvsCmnds.RIP)
-		if ipvsCmnds.RealServerComand == 1 {
-			cliCmnds = append(cliCmnds, ipvsCmnds.MetaInfo)
+		if ipvsCmnds.CommandFlag == 128 {
+			switch ipvsCmnds.MetaInfo {
+			case "tunnel":
+				cliCmnds = append(cliCmnds, "-i")
+			default:
+				cliCmnds = append(cliCmnds, "-m")
+			}
+			// this section is for add/change  real commands
+			cliCmnds = append(cliCmnds, "-w", ipvsCmnds.WeightFlag)
 		}
 	} else {
-		cliCmnds = append(cliCmnds, "-s", ipvsCmnds.SchedFlag)
+		switch ipvsCmnds.CommandFlag {
+		case 0:
+			cliCmnds = append(cliCmnds, "-s", ipvsCmnds.SchedFlag)
+		}
 	}
 	return cliCmnds
 }
@@ -84,17 +96,18 @@ func IPVSAdmExec(msg *AdapterMsg) error {
 		ipvsCmnds.ActionFlag = "-A"
 	case "DeleteService":
 		ipvsCmnds.ActionFlag = "-D"
+		ipvsCmnds.CommandFlag = 1
 	case "ChangeService":
 		ipvsCmnds.ActionFlag = "-E"
 	case "AddRealServer":
 		ipvsCmnds.ActionFlag = "-a"
-		ipvsCmnds.RealServerComand = 1
+		ipvsCmnds.CommandFlag = 128
 	case "DeleteRealServer":
 		ipvsCmnds.ActionFlag = "-d"
-		ipvsCmnds.RealServerComand = 2
+		ipvsCmnds.CommandFlag = 129
 	case "ChangeRealServer":
 		ipvsCmnds.ActionFlag = "-e"
-		ipvsCmnds.RealServerComand = 1
+		ipvsCmnds.CommandFlag = 128
 
 	}
 	cliArgs := IPVSCliArgs(&ipvsCmnds)
