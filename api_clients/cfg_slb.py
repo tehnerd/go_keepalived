@@ -46,9 +46,22 @@ def main():
         '''
         url = sys.argv[1]
         slb = slbAPI(url,"123")
-        #data = {"Command":"GetInfo"}
+        data = {"Command":"GetInfo"}
         #data = {"Command":"AddService", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp"}
-        data = {"Command":"AddReal", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp", "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
+        #data = {"Command":"RemoveService", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp"}
+        #data = {"Command":"ChangeService", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp"}
+        #data = {"Command":"AddReal", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp",
+        # "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
+        #data = {"Command":"RemoveReal", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp",
+        # "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
+        #data = {"Command":"Change", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp", 
+        # "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
+        #data = {"Command":"AddPeer", "Address":"fc12:1::1"}
+        #data = {"Command":"RemovePeer", "Address":"fc12:1::1"}
+        #data = {"Command":"StartNotification", "VIP":"[fc12:1::1]"}
+        #data = {"Command":"StopNotification", "VIP":"[fc12:1::1]"}
+        #data = {"Command":"StopAllNotification"}
+        #data = {"Command":"StartAllNotification"}
         resp = slb.ExecCmnd(data)
         print(resp)
 
