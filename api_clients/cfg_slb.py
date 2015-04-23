@@ -54,7 +54,7 @@ def main():
         # "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
         #data = {"Command":"RemoveReal", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp",
         # "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
-        #data = {"Command":"Change", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp", 
+        #data = {"Command":"ChangeReal", "VIP":"[fc12:1::1]","Port":"22","Proto":"tcp", 
         # "RIP":"[fc00::1]","RealPort":"22","Check":"tcp"}
         #data = {"Command":"AddPeer", "Address":"fc12:1::1"}
         #data = {"Command":"RemovePeer", "Address":"fc12:1::1"}
