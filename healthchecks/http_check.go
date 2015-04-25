@@ -10,7 +10,7 @@ func HTTPCheck(toCheck, fromCheck chan int, checkLine []string, timeOut int) {
 		fromCheck <- -1
 		return
 	}
-	client := &http.Client{Timeout: time.Duration(timeOut)}
+	client := &http.Client{Timeout: time.Second * time.Duration(timeOut)}
 	loop := 1
 	for loop == 1 {
 		select {
