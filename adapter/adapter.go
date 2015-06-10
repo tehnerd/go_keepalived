@@ -3,6 +3,8 @@ package adapter
 import (
 	"fmt"
 	"go_keepalived/notifier"
+	"regexp"
+	"strings"
 )
 
 /*
@@ -42,36 +44,46 @@ type AdapterMsg struct {
 	RealServerWeight string
 }
 
-func StartAdapter(msgChan, replyChan chan AdapterMsg, notifierChan chan notifier.NotifierMsg) {
+func StartAdapter(msgChan, replyChan chan AdapterMsg,
+	notifierChan chan notifier.NotifierMsg, adapterType string) {
 	loop := 1
-	testing := false
+	numRe, _ := regexp.Compile(`^\d{1,}$`)
 	for loop == 1 {
 		select {
 		case msg := <-msgChan:
-			if msg.Type == "StartTesting" {
-				testing = true
-				continue
-			} else if msg.Type == "StopTesting" {
-				testing = false
-				continue
-			}
-			/*
-				TODO: if we ever gonna have more than ipvs adapter we need to add here
-				adapter's type check
-			*/
-			if !testing {
+			switch adapterType {
+			case "ipvsadm":
 				err := IPVSAdmExec(&msg)
 				if err != nil {
-					//TODO: proper handling
+					//TODO(tehnerd): proper handling
 					continue
 				}
-			} else {
+			case "netlink", "gnl2go":
+				err := GNLExec(&msg)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+			case "testing":
+				DummyAdapter(&msg)
+			default:
 				DummyAdapter(&msg)
 			}
 			/*
 				The whole purpose of notifier is to tell about state of our services to
 				outerworld (right now the only implemented notifier is bgp injector)
 			*/
+			if numRe.MatchString(msg.ServiceVIP) {
+				/*
+					this section is for fwmark ipvs service. for this type of service
+					we asume that msg.ServiceMeta would be formated like
+					<scheduler> <type of fwmark(v4 or v6)> <address to advertise>...
+				*/
+				fields := strings.Fields(msg.ServiceMeta)
+				if len(fields) >= 3 {
+					msg.ServiceVIP = fields[2]
+				}
+			}
 			notifierChan <- notifier.NotifierMsg{Type: msg.Type, Data: msg.ServiceVIP}
 		}
 	}

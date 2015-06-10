@@ -1,9 +1,10 @@
 package notifier
 
 import (
-	"github.com/tehnerd/bgp2go"
 	"regexp"
 	"strings"
+
+	"github.com/tehnerd/bgp2go"
 )
 
 func BGPNotifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,

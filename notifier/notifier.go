@@ -37,10 +37,13 @@ type NotifierConfig struct {
 func Notifier(msgChan chan NotifierMsg, responseChan chan NotifierMsg,
 	notifierConfig NotifierConfig) {
 	//TODO: ExecExcternal shell script; should be easy to implement
-	if notifierConfig.Type == "bgp" {
+	switch notifierConfig.Type {
+	case "bgp":
 		go BGPNotifier(msgChan, responseChan, notifierConfig)
-	} else {
+	case "dummy":
 		go DummyNotifier(msgChan)
+	default:
+		go SilentNotifier(msgChan)
 	}
 }
 
@@ -48,5 +51,11 @@ func DummyNotifier(msgChan chan NotifierMsg) {
 	for {
 		msg := <-msgChan
 		fmt.Printf("Dummy Notifier: %#v\n", msg)
+	}
+}
+
+func SilentNotifier(msgChan chan NotifierMsg) {
+	for {
+		<-msgChan
 	}
 }

@@ -22,8 +22,10 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 	}
 	v4re, _ := regexp.Compile(`^(\d{1,3}\.){3}\d{1,3}$`)
 	v6re, _ := regexp.Compile(`^\[((\d|a|b|c|d|e|f|A|B|C|D|E|F){0,4}\:?){1,8}\]$`)
+	numRe, _ := regexp.Compile(`^\d{1,}$`)
 	sl := service.ServicesList{}
 	nc := notifier.NotifierConfig{}
+	adapterType := "ipvsadm"
 	sl.Init()
 	srvc := service.Service{}
 	srvc.Init()
@@ -60,7 +62,8 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 				fmt.Println(fields)
 				os.Exit(-1)
 			}
-			if len(v4re.FindString(fields[1])) == 0 && len(v6re.FindString(fields[1])) == 0 {
+			if len(v4re.FindString(fields[1])) == 0 && len(v6re.FindString(fields[1])) == 0 &&
+				len(numRe.FindString(fields[1])) == 0 {
 				fmt.Println("line: ", line)
 				fmt.Println("error in srvc address")
 				fmt.Println(fields)
@@ -119,6 +122,13 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 			nc.Type = fields[1]
 			notifierCfg = true
 			sectionCntr++
+		} else if fields[0] == "adapter" {
+			if sectionCntr != 1 || len(fields) != 2 || generalCfg != true {
+				fmt.Println("line: ", line)
+				fmt.Println("error in parsing adapter's cfg defenition\n must be adapter <type>")
+				os.Exit(-1)
+			}
+			adapterType = fields[1]
 		} else if fields[0] == "api" {
 			if sectionCntr != 1 || (len(fields) != 2 && fields[1] != "{") || generalCfg != true {
 				fmt.Println("line: ", line)
@@ -170,6 +180,8 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 					srvc.Proto = fields[1]
 				} else if fields[0] == "scheduler" && sectionCntr == 1 {
 					srvc.Scheduler = fields[1]
+				} else if fields[0] == "meta" && sectionCntr == 1 {
+					srvc.Meta = strings.Join(fields[1:], " ")
 				} else if fields[0] == "quorum" && sectionCntr == 1 {
 					qnum, err := strconv.Atoi(fields[1])
 					if err != nil {
@@ -234,6 +246,7 @@ func ReadCfg(cfgFile string) (*service.ServicesList, *notifier.NotifierConfig) {
 		}
 	}
 	sl.AddNotifier(nc)
+	sl.StartAdapter(adapterType)
 	if API.Enable {
 		go api.InitAPI(API, sl.ToServiceList, sl.FromServiceList)
 	}

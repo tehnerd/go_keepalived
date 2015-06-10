@@ -28,6 +28,7 @@ type Service struct {
 	Proto       string
 	Port        string
 	Scheduler   string
+	Meta        string
 	State       bool
 	AliveReals  int
 	Quorum      int
@@ -88,8 +89,11 @@ func (sl *ServicesList) Init() {
 	sl.FromNotifier = make(chan notifier.NotifierMsg)
 	sl.ToServiceList = make(chan ServiceMsg)
 	sl.FromServiceList = make(chan ServiceMsg)
-	go adapter.StartAdapter(sl.ToAdapter, sl.FromAdapter, sl.ToNotifier)
 	sl.logWriter = writer
+}
+
+func (sl *ServicesList) StartAdapter(adapterType string) {
+	go adapter.StartAdapter(sl.ToAdapter, sl.FromAdapter, sl.ToNotifier, adapterType)
 }
 
 func (sl *ServicesList) Add(srvc Service) error {
@@ -223,13 +227,12 @@ func GenerateAdapterMsg(msgType string, srvc *Service, rlSrv *RealServer) adapte
 	adapterMsg.ServiceVIP = srvc.VIP
 	adapterMsg.ServicePort = srvc.Port
 	adapterMsg.ServiceProto = srvc.Proto
+	adapterMsg.ServiceMeta = strings.Join([]string{srvc.Scheduler, srvc.Meta}, " ")
 	if rlSrv != nil {
 		adapterMsg.RealServerRIP = rlSrv.RIP
 		adapterMsg.RealServerPort = rlSrv.Port
 		adapterMsg.RealServerWeight = rlSrv.Weight
 		adapterMsg.RealServerMeta = rlSrv.Meta
-	} else {
-		adapterMsg.ServiceMeta = srvc.Scheduler
 	}
 	return adapterMsg
 }

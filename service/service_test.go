@@ -46,10 +46,10 @@ func TestServicesListRemove(t *testing.T) {
 	srvc4.Init()
 	srvcList := ServicesList{}
 	srvcList.Init()
+	srvcList.StartAdapter("testing")
 	nc := notifier.NotifierConfig{}
-	nc.Type = "Testing"
+	nc.Type = "dummy"
 	srvcList.AddNotifier(nc)
-	srvcList.Testing = true
 	srvcList.Add(srvc1)
 	srvcList.Add(srvc2)
 	srvcList.Add(srvc3)

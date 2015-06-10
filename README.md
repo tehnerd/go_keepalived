@@ -15,17 +15,17 @@ Other goals:
   it's not that hard to add new derectives into the parser; so rewriting it (or make it more "beautiful") isn't my main
   priority
   
-  * right now we have implemented ipvsadm adapter (adapter in our cases is a way to program the forwarding path;
-  right now (i wasnt able to find proper generic netlink implementation in Go) we are using ipvsadm bin (thru os/exec)
-  for seting up forwarding path) lots of feature must be added; right now we are using it just for POC.
-  
+  * so far we have implemented two adapters (adapter in our case is a way to program forwarding path):
+    ipvsadm (limited features supported; we are using it thru os/exec) and generic netlink msgs (thru github.com/tehnerd/gnl2go lib)
+    by default we are using ipvsadm (check cfg example inside main for more info about how to use netlink instead of ipvsadm)
+
   * tcp and http/https healtchecks
   
   * signaling that real server has failed it's check/or check was successful
 
   * bgp speaker/injector. now we can advertise/withdraw v4 routes into routing domain
   (work in progress; https://github.com/tehnerd/bgp2go)
-  * initial IPv6 support (v6 vips + v6reals; TODO: v4 vips/v6 reals). we can advertise VIPs to bgp peers as well.
+  * initial IPv6 support (v6 vips + v6reals; TODO: check that v4 vips/v6 reals works with netlink). we can advertise VIPs to bgp peers as well.
   * initial support for http api (todo: httpS; more features)
  
 basicly that gives us a minimal feature set to move on with other parts of the project.
