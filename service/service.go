@@ -386,6 +386,14 @@ func (rlSrv *RealServer) StartReal() {
 		}
 		checkLine := fields[1:]
 		go healthchecks.HTTPCheck(toCheck, fromCheck, checkLine, rlSrv.Timeout)
+	case "zk":
+		if len(fields) < 3 {
+			DataString := rlSrv.ServiceMsgDataString()
+			rlSrv.ToService <- ServiceMsg{Cmnd: "RSFatalError", Data: DataString}
+			return
+		}
+		checkLine := fields[1:]
+		go healthchecks.ZKCheck(toCheck, fromCheck, checkLine, rlSrv.Timeout)
 	}
 	loop := 1
 	for loop == 1 {

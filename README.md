@@ -27,6 +27,10 @@ Other goals:
   (work in progress; https://github.com/tehnerd/bgp2go)
   * initial IPv6 support (v6 vips + v6reals; TODO: check that v4 vips/v6 reals works with netlink). we can advertise VIPs to bgp peers as well.
   * initial support for http api (todo: httpS; more features)
+  * testing support for zookeper's based healthcheck (actually just fooling around with zookeeper; IMO this is wrong way to implement ZK's support.
+    it will make more sense to make separate, ZK bassed tool, which will pull all the configuration (IPs of VIPs, state of reals, other type of 
+    cfg from) from ZK, and wont have any cfg file at all (or just with few lines - IPs of ZK itself). If you are interesting in this type of tool - drop me a not
+    and/or PR)
  
 basicly that gives us a minimal feature set to move on with other parts of the project.
 
